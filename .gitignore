@@ -1,0 +1,45 @@
+# =========================
+# Project-specific folders
+# =========================
+
+figures/
+flash_attn_temp/
+output/
+
+eval/HunyuanVideo
+eval/VLMEvalKit
+eval/LongBench/data_cache
+eval/LongBench/pred
+eval/RULER/scripts/data/synthetic/json
+xattn/conv_ker_weights_16k
+xattn/conv_qwen
+xattn/conv_weights
+xattn/conv_weights2
+xattn/threshold
+
+
+eval/RULER/docker/
+eval/RULER/scripts/benchmark_root/
+eval/RULER/scripts/benchmark_root_old
+eval/RULER/scripts/data/synthetic/json/
+
+# =========================
+# Python cache
+# =========================
+
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.zip
+core.*
+
+# =========================
+# IDE / Notebook cache
+# =========================
+
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+.idea/
+.vscode/
