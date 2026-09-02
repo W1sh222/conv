@@ -20,6 +20,7 @@ xattn/threshold
 
 eval/RULER/docker/
 eval/RULER/scripts/benchmark_root/
+eval/RULER/scripts/benchmark_root_08/
 eval/RULER/scripts/benchmark_root_old
 eval/RULER/scripts/data/synthetic/json/
 
