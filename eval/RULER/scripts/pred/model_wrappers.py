@@ -20,21 +20,24 @@ from typing import Dict, List, Optional
 
 class HuggingFaceModel:
     def __init__(self, name_or_path: str, fastprefillconfig, **generation_kwargs) -> None:
-        from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+        from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, pipeline
         self.tokenizer = AutoTokenizer.from_pretrained(name_or_path, trust_remote_code=True)
 
         if 'Yarn-Llama' in name_or_path:
             model_kwargs = None
         else:
             model_kwargs = {"attn_implementation": "flash_attention_2"}
-        if "Llama-3.1-8B-Instruct" in name_or_path:
+        model_type = AutoConfig.from_pretrained(
+            name_or_path, trust_remote_code=True
+        ).model_type
+        if model_type == "llama":
             from xattn.src.load_llama import load_model
             self.pipeline = None
             self.model, _ = load_model(
                 fastprefillconfig,
                 name_or_path=name_or_path,
             )
-        elif "qwen3-8b" in name_or_path.lower():
+        elif model_type == "qwen3":
             from xattn.src.load_qwen3 import load_model
             self.pipeline = None
             self.model, self.tokenizer = load_model(
@@ -71,7 +74,8 @@ class HuggingFaceModel:
 
     def process_batch(self, prompts: List[str], **kwargs) -> List[dict]:
         if self.pipeline is None:
-            inputs = self.tokenizer(prompts, return_tensors="pt", padding=True).to(self.model.device)
+            input_device = self.model.model.embed_tokens.weight.device
+            inputs = self.tokenizer(prompts, return_tensors="pt", padding=True).to(input_device)
 
             generated_ids = self.model.generate(
                 **inputs,

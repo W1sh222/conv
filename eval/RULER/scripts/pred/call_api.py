@@ -103,7 +103,12 @@ parser.add_argument("--batch_size", type=int, default=1)
 parser.add_argument("--threshold", type=float, default=None, help="Threshold for grouping.")
 parser.add_argument("--print_detail", action='store_true', default=False, help="Print detailed information. Default is False.")
 parser.add_argument("--stride", type=int, default=16, help="Small block size") 
-parser.add_argument("--metric", type=str, default="xattn", help="")
+parser.add_argument(
+    "--metric",
+    type=str,
+    default="xattn",
+    choices=("xattn", "conv", "minference", "flex", "full"),
+)
 
 # Sparse-attention block selection. This is unrelated to generation-time
 # --top_k / --top_p above.
@@ -113,9 +118,7 @@ parser.add_argument(
     default=0.65,
     help=(
         "Sparse block/pattern keep ratio for metric in "
-        "{xattn, conv, flex, minference}. For xattn/conv/flex, this controls "
-        "the retained causal-visible block ratio. For minference, this controls "
-        "the total vertical/slash pattern budget ratio."
+        "{xattn, conv, flex}. MInference keeps its own vertical/slash budget."
     ),
 )
 
@@ -135,7 +138,7 @@ args.stop_words = list(filter(None, args.stop_words.split(',')))
 if args.server_type == 'hf' or args.server_type == 'gemini':
     args.threads = 1
 
-if args.metric in ("conv", "xattn", "flex", "minference"):
+if args.metric in ("conv", "xattn", "flex"):
     if not (0.0 < args.block_topk_ratio <= 1.0):
         raise ValueError(
             "--block_topk_ratio must be in (0, 1], "
@@ -146,11 +149,20 @@ if args.metric in ("conv", "xattn", "flex", "minference"):
         f"ratio={args.block_topk_ratio:.4f}",
         flush=True,
     )
+elif args.metric == "minference":
+    print("[Block Selection] method=minference mode=fixed_vertical_slash", flush=True)
 
-if "qwen3-8b" in args.model_name_or_path.lower():
+from transformers import AutoConfig
+
+model_type = AutoConfig.from_pretrained(
+    args.model_name_or_path, trust_remote_code=True
+).model_type
+if model_type == "qwen3":
     from xattn.src.load_qwen3 import FastPrefillConfig
-else:
+elif model_type == "llama":
     from xattn.src.load_llama import FastPrefillConfig
+else:
+    raise ValueError(f"Unsupported Hugging Face model_type={model_type!r}")
 
 fastprefillconfig = FastPrefillConfig(
     threshold=args.threshold,

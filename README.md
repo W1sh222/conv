@@ -48,7 +48,7 @@ conda install -y nvidia/label/cuda-12.4.0::cuda-toolkit
 conda install -y nvidia::cuda-cudart-dev
 conda install -y pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
 
-pip install transformers==4.46 accelerate sentencepiece minference datasets wandb zstandard matplotlib huggingface_hub==0.23.2 torch torchaudio torchvision xformers  vllm==0.6.3.post1 vllm-flash-attn==2.6.1
+pip install transformers==4.51.0 tokenizers==0.21.1 accelerate sentencepiece minference datasets wandb zstandard matplotlib huggingface_hub==0.30.2 torch torchaudio torchvision xformers vllm==0.6.3.post1 vllm-flash-attn==2.6.1
 pip install tensor_parallel==2.0.0
 
 pip install ninja packaging
@@ -112,7 +112,9 @@ bash scripts/run_ruler.sh
 Set up the required environment for Longbench, then reproduce Longbench's test results with a single line of code.
 ```bash
 pip install fuzzywuzzy rouge
-bash scripts/run_longbench.sh
+# MODEL: llama or qwen3; METHOD: xattn, conv, minference, flex, or full
+bash scripts/run_longbench_451.sh llama conv
+bash scripts/run_longbench_451.sh qwen3 conv
 ```
 ### VLLM
 We apply Stride S = 16 and threshold τ = 0.9 parameters on the QwenVL-2-7B model. XAttention achieves the best average score among current sparse attention methods and even outperforms FlashAttention on long videos, with a frame rate of 1 frame per second for up to 1 hour.

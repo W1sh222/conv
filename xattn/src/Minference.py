@@ -13,7 +13,7 @@ from minference.ops.pit_sparse_flash_attention_v2 import (
 
 MAX_LAST_Q = 64
 
-_arange = torch.arange(MAX_LAST_Q, device="cuda")
+_arange = torch.arange(MAX_LAST_Q)
 LAST_Q_MASK = (
     _arange[None, None, :, None]
     >= _arange[None, None, None, :]

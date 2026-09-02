@@ -2,7 +2,7 @@ from xattn.src.utils import *
 import torch
 import math
 import torch.nn.functional as F
-from xattn.src.kernels import (
+from xattn.src.kernels_conv_no_spaced_sampling import (
     flat_group_gemm,
     softmax_fuse_block_sum,
     flat_group_gemm_fuse_reshape,
@@ -320,13 +320,15 @@ def xattn_estimate(
     offset_token_chunk_num = k_chunk_num - q_chunk_num
 
     if k_num_to_pad > 0:
-        pad_key_states = F.pad(key_states, (0, 0, 0, k_num_to_pad), value=0).to("cuda")
+        pad_key_states = F.pad(key_states, (0, 0, 0, k_num_to_pad), value=0).to(
+            query_states.device
+        )
     else:
         pad_key_states = key_states
     if q_num_to_pad > 0:
-        pad_query_states = F.pad(query_states, (0, 0, 0, q_num_to_pad), value=0).to(
-            "cuda"
-        )
+        pad_query_states = F.pad(
+            query_states, (0, 0, 0, q_num_to_pad), value=0
+        ).to(query_states.device)
     else:
         pad_query_states = query_states
 
@@ -462,7 +464,7 @@ def xattn_estimate(
             attn_weights_slice = torch.matmul(
                 chunked_query,
                 reshaped_key.transpose(2, 3),
-            ).to("cuda")
+            ).to(query_states.device)
 
             attn_weights_slice = (
                 attn_weights_slice / math.sqrt(head_dim) / stride / norm
@@ -531,7 +533,7 @@ def xattn_estimate(
                 )
                 .sum(dim=-1)
                 .sum(dim=-2)
-                .to("cuda")
+                .to(query_states.device)
             )
             del chunked_query
         

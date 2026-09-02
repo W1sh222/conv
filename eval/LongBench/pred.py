@@ -6,6 +6,7 @@ import json
 from datasets import Dataset
 from huggingface_hub import hf_hub_download
 from transformers import (
+    AutoConfig,
     AutoTokenizer,
     AutoModelForCausalLM,
     GenerationConfig,
@@ -23,12 +24,6 @@ from transformers.models.llama.modeling_llama import (
     nn,
 )
 import math
-from xattn.src.Xattention import Xattention_prefill
-from xattn.src.Flexprefill import Flexprefill_prefill
-from xattn.src.Minference import Minference_prefill
-from xattn.src.Conv import Conv_prefill as LlamaConv_prefill
-from xattn.src.Conv_qwen import Conv_prefill as QwenConv_prefill
-from flash_attn import flash_attn_func
 import types
 from ratio import max_ratio, max as threshold_max
 
@@ -48,27 +43,30 @@ def parse_args(args=None):
         "--method",
         type=str,
         default="full",
+        choices=("xattn", "conv", "minference", "flex", "full"),
     )
 
     # Sparse-attention block selection. This is unrelated to token generation.
     parser.add_argument(
         "--block_topk_ratio",
         type=float,
-        defaul0.5t=,
+        default=0.65,
         help=(
-            "Sparse keep ratio for --method in {xattn, conv, flex, minference}. "
+            "Sparse keep ratio for --method in {xattn, conv, flex}. "
             "For xattn/conv/flex, each causal query block keeps approximately "
-            "ceil(ratio * visible_key_blocks) selected blocks. For minference, "
-            "the ratio controls the total vertical/slash pattern budget. "
-            "Default: 0.5."
+            "ceil(ratio * visible_key_blocks) selected blocks. MInference uses "
+            "its fixed vertical/slash pattern budget. "
+            "Default: 0.65."
         ),
     )
+
+    parser.add_argument("--stride", type=int, default=8)
 
     parser.add_argument(
         "--conv_weight_path",
         type=str,
-        default="xattn/conv_weights/conv_kernel_7x7.pt",
-        help="Path to conv kernel .pt. Supports [1,1,7,7], [H,1,7,7], or [L,H,1,7,7].",
+        default=None,
+        help="Optional Conv .pt override; otherwise use the model-specific default.",
     )
     parser.add_argument(
         "--conv_safe_topk",
@@ -82,6 +80,11 @@ def parse_args(args=None):
         action="store_true",
         help="Use Conv_prefill triton estimation path. Default is False for safety.",
         default=True,
+    )
+    parser.add_argument(
+        "--no_conv_use_triton",
+        dest="conv_use_triton",
+        action="store_false",
     )
 
     parser.add_argument(
@@ -250,6 +253,7 @@ def build_chat(tokenizer, prompt, model_name):
             [{"role": "user", "content": prompt}],
             tokenize=False,
             add_generation_prompt=True,
+            enable_thinking=False,
         )
     return prompt
 
@@ -669,7 +673,10 @@ def get_pred(
         ]:  # chat models are better off without build prompts on these tasks
             prompt = build_chat(tokenizer, prompt, model_name)
 
-        input = tokenizer(prompt, truncation=False, return_tensors="pt").to("cuda")
+        input_device = model.model.embed_tokens.weight.device
+        input = tokenizer(prompt, truncation=False, return_tensors="pt").to(
+            input_device
+        )
         pbar.set_description(f"Generating for {idx}, len = {input.input_ids.shape[-1]}")
         with torch.no_grad():
             output = model(
@@ -763,18 +770,31 @@ def seed_everything(seed):
     torch.cuda.manual_seed_all(seed)
 
 
-def load_model_and_tokenizer(path, model_name):
-    tokenizer = AutoTokenizer.from_pretrained(
-        path, trust_remote_code=True, use_fast=False
+def load_model_and_tokenizer(path, model_name, runtime_args):
+    model_type = AutoConfig.from_pretrained(
+        path, trust_remote_code=True
+    ).model_type
+    if model_type == "llama":
+        from xattn.src.load_llama import FastPrefillConfig, load_model
+    elif model_type == "qwen3":
+        from xattn.src.load_qwen3 import FastPrefillConfig, load_model
+    else:
+        raise ValueError(
+            f"LongBench 4.51 adapter supports llama/qwen3, got {model_type!r}"
+        )
+
+    fastprefillconfig = FastPrefillConfig(
+        metric=runtime_args.method,
+        stride=runtime_args.stride,
+        block_topk_ratio=runtime_args.block_topk_ratio,
+        conv_weight_path=runtime_args.conv_weight_path,
+        conv_safe_topk=runtime_args.conv_safe_topk,
+        conv_use_triton=runtime_args.conv_use_triton,
+        conv_fallback_topk=runtime_args.conv_fallback_topk,
+        report_density=runtime_args.report_density,
+        print_density_per_layer=runtime_args.print_density_per_layer,
     )
-    model = AutoModelForCausalLM.from_pretrained(
-        path,
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16,
-        low_cpu_mem_usage=True,
-        device_map="auto",
-        attn_implementation="eager",
-    )
+    model, tokenizer = load_model(fastprefillconfig, name_or_path=path)
 
     generation_config = GenerationConfig.from_pretrained(path)
 
@@ -798,14 +818,14 @@ def load_model_and_tokenizer(path, model_name):
         tokenizer.pad_token = tokenizer.eos_token
 
     model = model.eval()
-    return model, tokenizer, eos_token_ids
+    return model, tokenizer, eos_token_ids, fastprefillconfig
 
 
 if __name__ == "__main__":
     seed_everything(42)
     args = parse_args()
 
-    if args.method in ("conv", "xattn", "flex", "minference"):
+    if args.method in ("conv", "xattn", "flex"):
         if not (0.0 < args.block_topk_ratio <= 1.0):
             raise ValueError(
                 "--block_topk_ratio must be in (0, 1], "
@@ -816,54 +836,21 @@ if __name__ == "__main__":
             f"ratio={args.block_topk_ratio:.4f}",
             flush=True,
         )
+    elif args.method == "minference":
+        print(
+            "[Block Selection] method=minference mode=fixed_vertical_slash",
+            flush=True,
+        )
 
     model2path = json.load(open("eval/LongBench/config/model2path.json", "r"))
     model2maxlen = json.load(open("eval/LongBench/config/model2maxlen.json", "r"))
-    device_list = [i for i in range(torch.cuda.device_count())]
     model_name = args.model
-    # define your model
-    # breakpoint()
-    model, tokenizer, eos_token_ids = load_model_and_tokenizer(
-        model2path[model_name], model_name
+    model_path = model2path.get(model_name, model_name)
+    model_output_name = Path(model_path).name
+    model, tokenizer, eos_token_ids, fastprefillconfig = load_model_and_tokenizer(
+        model_path, model_name, args
     )
-
-    for name, module in model.named_modules():
-        if name.split(".")[-1] == "self_attn":
-            layer_idx = int(name.split(".")[2])
-
-            original_parameters = inspect.signature(module.forward).parameters
-            module._fastprefill_returns_past_key_value = (
-                "output_attentions" in original_parameters
-                and "past_key_value" in original_parameters
-            )
-
-            module.method = args.method
-
-            # conv 专用信息
-            module.conv_layer_idx = layer_idx
-            module.conv_weight_path = args.conv_weight_path
-            module.conv_safe_topk = args.conv_safe_topk
-            module.conv_use_triton = args.conv_use_triton
-            module.conv_fallback_topk = args.conv_fallback_topk
-            module.conv_fallback_full = not args.no_conv_fallback_full
-            module.block_topk_ratio = args.block_topk_ratio
-
-            # density-test options
-            module.report_density = args.report_density
-            module.print_density_per_layer = args.print_density_per_layer
-
-            if args.method == "xattn" or args.method == "conv":
-                if getattr(model.config, "model_type", None) == "qwen2":
-                    # Qwen has 28 heads; the Llama threshold is 32-head.
-                    # topk_ratio is authoritative in this script, so a scalar
-                    # is the correct compatibility fallback.
-                    module.threshold = torch.tensor(0.9)
-                else:
-                    module.threshold = torch.tensor(threshold_max[layer_idx])
-
-            module.forward = types.MethodType(new_attention_forward, module)
-
-    max_length = model2maxlen[model_name]
+    max_length = model2maxlen.get(model_name, 131072)
     if args.e:
         datasets = [
             "qasper",
@@ -893,12 +880,13 @@ if __name__ == "__main__":
     for dataset in datasets:
         # Keep each dataset's density statistics independent.
         reset_density_records()
+        fastprefillconfig.reset_density_records()
 
         load_name = f"{dataset}_e" if args.e else dataset
         data = load_longbench_compatible(load_name)
 
         pred_root = "eval/LongBench/pred_e" if args.e else "eval/LongBench/pred"
-        pred_dir = f"{pred_root}/{model_name}"
+        pred_dir = f"{pred_root}/{model_output_name}"
         os.makedirs(pred_dir, exist_ok=True)
 
         if args.method == "full":
@@ -916,10 +904,9 @@ if __name__ == "__main__":
                 f"{dataset}-flex-topk_ratio={ratio_tag}.jsonl"
             )
         elif args.method == "minference":
-            ratio_tag = f"{args.block_topk_ratio:.4f}".rstrip("0").rstrip(".")
             out_path = (
                 f"{pred_dir}/minference/"
-                f"{dataset}-minference-topk_ratio={ratio_tag}.jsonl"
+                f"{dataset}-minference-fixed_vs.jsonl"
             )
         elif args.method == "conv":
             ratio_tag = f"{args.block_topk_ratio:.4f}".rstrip("0").rstrip(".")
@@ -948,6 +935,14 @@ if __name__ == "__main__":
         )
 
         if args.report_density and args.method in ("conv", "xattn"):
+            _DENSITY_RECORDS.extend(
+                {
+                    **record,
+                    "q_len": -1,
+                    "k_len": -1,
+                }
+                for record in fastprefillconfig.density_records
+            )
             print_density_summary()
 
             if args.density_output is not None:

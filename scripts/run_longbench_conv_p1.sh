@@ -25,5 +25,7 @@ done
 cd eval/LongBench
 
 for model in $models; do
-    python -u eval.py --model "$model"
+    model_output_name="$(basename "$model")"
+    python -u eval.py --model "$model_output_name" \
+        --results_path "pred/${model_output_name}/conv/"
 done

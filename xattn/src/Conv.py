@@ -17,7 +17,7 @@ _STATIC_PREFILL_TENSOR_CACHE = {}
 
 # Default paths for conv kernel weights
 _CONV_WEIGHT_DIR = os.path.join(os.path.dirname(__file__), "..", "conv_weights")
-_DEFAULT_WEIGHT_PATH = "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn/conv_weights/.pt"
+_DEFAULT_WEIGHT_PATH = None
 
 
 def _get_conv_weight(kernel_size=7, weight_path=None, device=None):
@@ -39,6 +39,7 @@ def _get_conv_weight(kernel_size=7, weight_path=None, device=None):
     5. [L, H, 1, K, K]
        每个 layer、每个 head 一个 kernel，带 conv channel 维
     """
+    explicit_weight_path = weight_path is not None
     if weight_path is None:
         weight_path = _DEFAULT_WEIGHT_PATH
 
@@ -46,13 +47,13 @@ def _get_conv_weight(kernel_size=7, weight_path=None, device=None):
     if cache_key in _CONV_WEIGHT_CACHE:
         return _CONV_WEIGHT_CACHE[cache_key]
     
-    weight_path = "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn/conv_weights2/conv_kernel_7x7_ruler_mix_sparse_guarded_t065_multikey_qa2_48k64k_bf16_ema_step11000.pt"
-    
     weight = None
 
     if weight_path is not None and os.path.exists(weight_path):
         print("loading weight_path:", weight_path)
         weight = torch.load(weight_path, map_location=device, weights_only=True)
+    elif explicit_weight_path:
+        raise FileNotFoundError(f"conv weight does not exist: {weight_path}")
     if weight is None:
         weight = torch.ones(
             1,
@@ -734,13 +735,15 @@ def conv_estimate(
     offset_token_chunk_num = k_chunk_num - q_chunk_num
 
     if k_num_to_pad > 0:
-        pad_key_states = F.pad(key_states, (0, 0, 0, k_num_to_pad), value=0).to("cuda")
+        pad_key_states = F.pad(key_states, (0, 0, 0, k_num_to_pad), value=0).to(
+            query_states.device
+        )
     else:
         pad_key_states = key_states
     if q_num_to_pad > 0:
-        pad_query_states = F.pad(query_states, (0, 0, 0, q_num_to_pad), value=0).to(
-            "cuda"
-        )
+        pad_query_states = F.pad(
+            query_states, (0, 0, 0, q_num_to_pad), value=0
+        ).to(query_states.device)
     else:
         pad_query_states = query_states
 
@@ -878,7 +881,7 @@ def conv_estimate(
             attn_weights_slice = torch.matmul(
                 chunked_query,
                 reshaped_key.transpose(2, 3),
-            ).to("cuda")
+            ).to(query_states.device)
 
             attn_weights_slice = (
                 attn_weights_slice / math.sqrt(head_dim) / stride / norm
@@ -947,7 +950,7 @@ def conv_estimate(
                 )
                 .sum(dim=-1)
                 .sum(dim=-2)
-                .to("cuda")
+                .to(query_states.device)
             )
             del chunked_query
 

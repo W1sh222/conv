@@ -24,23 +24,18 @@ _WEIGHT_CACHE = {}
 
 
 def _get_qwen3_weight(kernel_size=7, weight_path=None, device=None):
-    """Load the intentionally hard-coded Qwen3 checkpoint.
-
-    ``weight_path`` is deliberately ignored to preserve the repository's
-    hard-coded-PT convention requested for Conv inference.
-    """
-    del weight_path
+    """Load an explicit Qwen3 checkpoint, or the Qwen3 default checkpoint."""
     if kernel_size != 7:
         raise ValueError(f"Qwen3 Conv checkpoint is 7x7, got kernel_size={kernel_size}")
-    if not os.path.isfile(QWEN3_CONV_WEIGHT_PATH):
+    resolved_path = weight_path or QWEN3_CONV_WEIGHT_PATH
+    if not os.path.isfile(resolved_path):
         raise FileNotFoundError(
-            "Qwen3 Conv PT not found. Train it first or update the hard-coded "
-            f"QWEN3_CONV_WEIGHT_PATH in Conv_qwen3.py: {QWEN3_CONV_WEIGHT_PATH}"
+            f"Qwen3 Conv PT not found: {resolved_path}"
         )
-    cache_key = (QWEN3_CONV_WEIGHT_PATH, str(device))
+    cache_key = (resolved_path, str(device))
     if cache_key not in _WEIGHT_CACHE:
         weight = torch.load(
-            QWEN3_CONV_WEIGHT_PATH, map_location=device, weights_only=True
+            resolved_path, map_location=device, weights_only=True
         )
         expected = (QWEN3_NUM_LAYERS, QWEN3_NUM_ATTENTION_HEADS, 7, 7)
         if not torch.is_tensor(weight) or tuple(weight.shape) != expected:
@@ -49,7 +44,7 @@ def _get_qwen3_weight(kernel_size=7, weight_path=None, device=None):
         if not torch.isfinite(weight).all():
             raise ValueError("Qwen3 Conv PT contains NaN or Inf")
         _WEIGHT_CACHE[cache_key] = weight
-        print(f"[Conv-Qwen3] loaded hard-coded PT: {QWEN3_CONV_WEIGHT_PATH}", flush=True)
+        print(f"[Conv-Qwen3] loaded PT: {resolved_path}", flush=True)
     return _WEIGHT_CACHE[cache_key]
 
 
