@@ -28,7 +28,6 @@ from transformers import (
     AutoTokenizer,
     BitsAndBytesConfig,
 )
-from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
 
 
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -55,6 +54,10 @@ from train_conv_kernel_guarded import (  # type: ignore  # noqa: E402
     ranking_loss,
     soft_effective_blocks,
 )
+from model_adapter_451 import (  # type: ignore  # noqa: E402
+    extract_qk_451,
+    validate_model_451,
+)
 
 
 class _StopFrozenForward(Exception):
@@ -71,6 +74,7 @@ def format_prompt_only(example: Dict[str, Any], tokenizer) -> str:
             messages,
             tokenize=False,
             add_generation_prompt=True,
+            enable_thinking=False,
         )
     elif "text" in example:
         text = str(example["text"])
@@ -208,30 +212,7 @@ def extract_qk(
     position_ids: torch.Tensor,
     layer_idx: int,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    attention = model.model.layers[layer_idx].self_attn
-    batch, seq_len, _ = hidden_states.shape
-    q_heads = getattr(
-        attention,
-        "num_heads",
-        model.config.num_attention_heads,
-    )
-    kv_heads = getattr(
-        attention,
-        "num_key_value_heads",
-        model.config.num_key_value_heads,
-    )
-    head_dim = getattr(
-        attention,
-        "head_dim",
-        model.config.hidden_size // q_heads,
-    )
-    q = attention.q_proj(hidden_states)
-    k = attention.k_proj(hidden_states)
-    q = q.view(batch, seq_len, q_heads, head_dim).transpose(1, 2)
-    k = k.view(batch, seq_len, kv_heads, head_dim).transpose(1, 2)
-    cos, sin = model.model.rotary_emb(hidden_states, position_ids)
-    q, k = apply_rotary_pos_emb(q, k, cos, sin)
-    return q.contiguous(), k.contiguous()
+    return extract_qk_451(model, hidden_states, position_ids, layer_idx)
 
 
 def choose_query_rows(
@@ -527,7 +508,14 @@ def balanced_layers(
     return sorted(chosen)
 
 
-def load_frozen_model(model_path: str, precision: str):
+def load_frozen_model(
+    model_path: str,
+    precision: str,
+    expected_model_type: str,
+    expected_num_layers: int,
+    expected_num_heads: int,
+    expected_num_key_value_heads: int,
+):
     precision = precision.lower()
     quantization_config = None
     dtype = torch.bfloat16
@@ -551,11 +539,19 @@ def load_frozen_model(model_path: str, precision: str):
     print(f"[model] attention_implementation={attention_impl}")
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
+        trust_remote_code=True,
         torch_dtype=dtype,
         quantization_config=quantization_config,
         device_map={"": 0},
         low_cpu_mem_usage=True,
         attn_implementation=attention_impl,
+    )
+    validate_model_451(
+        model,
+        expected_model_type=expected_model_type,
+        expected_num_layers=expected_num_layers,
+        expected_num_heads=expected_num_heads,
+        expected_num_key_value_heads=expected_num_key_value_heads,
     )
     model.eval()
     model.config.use_cache = False
@@ -601,7 +597,7 @@ def learning_rate_for_step(
     return base_lr * (min_lr_ratio + (1.0 - min_lr_ratio) * cosine)
 
 
-def main() -> None:
+def main(default_model_type: str = "llama") -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
     parser.add_argument("--data", required=True)
@@ -609,12 +605,18 @@ def main() -> None:
     parser.add_argument("--init_path", required=True)
     parser.add_argument("--resume_state", default="")
     parser.add_argument(
+        "--model_type",
+        choices=["llama", "qwen3"],
+        default=default_model_type,
+    )
+    parser.add_argument(
         "--model_precision",
         choices=["nf4", "bf16", "fp16"],
         default="nf4",
     )
     parser.add_argument("--num_layers", type=int, default=32)
     parser.add_argument("--num_heads", type=int, default=32)
+    parser.add_argument("--num_key_value_heads", type=int, default=8)
     parser.add_argument("--kernel_size", type=int, default=7)
     parser.add_argument("--layers_per_sample", type=int, default=1)
     parser.add_argument("--min_seq_length", type=int, default=24576)
@@ -737,14 +739,34 @@ def main() -> None:
         )
     print("=" * 80)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.model,
+        use_fast=True,
+        trust_remote_code=True,
+    )
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     dataset = load_dataset("json", data_files=args.data, split="train")
     print(f"dataset size: {len(dataset)}")
     if len(dataset) == 0:
         raise RuntimeError("empty dataset")
-    model = load_frozen_model(args.model, args.model_precision)
+    model = load_frozen_model(
+        args.model,
+        args.model_precision,
+        args.model_type,
+        args.num_layers,
+        args.num_heads,
+        args.num_key_value_heads,
+    )
+    native_context = int(
+        getattr(model.config, "max_position_embeddings", args.max_seq_length)
+    )
+    if args.max_seq_length > native_context:
+        print(
+            "[model warning] requested training length exceeds the model's "
+            f"max_position_embeddings ({args.max_seq_length}>{native_context}); "
+            "using native-RoPE extrapolation to stay identical to inference"
+        )
 
     conv = BoundedResidualConvKernel(
         init_path=args.init_path,

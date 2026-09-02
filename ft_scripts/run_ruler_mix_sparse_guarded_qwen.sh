@@ -6,11 +6,15 @@ set -euo pipefail
 # losses, optimizer, and checkpoint cadence are kept identical to the Llama
 # experiment. Qwen starts from an exact identity (no-convolution) 7x7 kernel;
 # no Llama Conv checkpoint or optimizer state is reused.
+# Keep the checkpoint's native RoPE configuration so training and the current
+# inference loader see identical Q/K maps; do not apply a training-only YaRN.
 
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export CUDA_LAUNCH_BLOCKING="${CUDA_LAUNCH_BLOCKING:-0}"
 export TOKENIZERS_PARALLELISM=false
-export PYTHONPATH="$(pwd):${PYTHONPATH:-}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_ROOT}"
+export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True,max_split_size_mb:128}"
 
 MODEL_PATH="/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Qwen3-8B"
@@ -38,7 +42,7 @@ THRESHOLD=0.65
 BLOCK_TOPK_RATIO=0.65
 
 OUT_PATH="${OUT_PATH:-${WEIGHT_DIR}/conv_kernel_7x7_qwen3_8b_ruler_mix_sparse_guarded_t065_multikey_qa2_48k64k_${MODEL_PRECISION}.pt}"
-LOG_DIR="./ft_scripts/qwen_sparse_ruler/logs"
+LOG_DIR="./ft_scripts/sparse_ruler_qwen/logs"
 mkdir -p "${LOG_DIR}" "${WEIGHT_DIR}" "$(dirname "${SYNTH_DATA}")"
 LOG_FILE="${LOG_DIR}/train_qwen3_8b_sparse_guarded_t065_multikey_qa2_48k64k_${MODEL_PRECISION}.log"
 exec > >(tee -a "${LOG_FILE}") 2>&1
@@ -76,7 +80,7 @@ fi
 if [[ "${REBUILD_DATA:-0}" == "1" || "${CURRENT_SAMPLES}" -ne "${DATA_SAMPLES}" ]]; then
   BUILD_PATH="${SYNTH_DATA}.building"
   echo "[data] rebuilding current=${CURRENT_SAMPLES} expected=${DATA_SAMPLES}"
-  python ft_scripts/qwen_sparse_ruler/build_ruler_mix_sft.py \
+  python ft_scripts/sparse_ruler_qwen/build_ruler_mix_sft.py \
     --model "${MODEL_PATH}" \
     --nolima_root "${NOLIMA_ROOT}" \
     --out "${BUILD_PATH}" \
@@ -108,20 +112,21 @@ if [[ -n "${RESUME_STATE:-}" ]]; then
   RESUME_ARGS+=(--resume_state "${RESUME_STATE}")
 fi
 
-python ft_scripts/qwen_sparse_ruler/train_conv_kernel_guarded_long.py \
+python ft_scripts/sparse_ruler_qwen/train_conv_kernel_guarded_long.py \
   --model "${MODEL_PATH}" \
   --data "${SYNTH_DATA}" \
   --out "${OUT_PATH}" \
   --init_path "${INIT_PATH}" \
   "${RESUME_ARGS[@]}" \
   --model_precision "${MODEL_PRECISION}" \
+  --model_type qwen3 \
   --num_layers 36 \
   --num_heads 32 \
+  --num_key_value_heads 8 \
   --kernel_size 7 \
   --layers_per_sample "${LAYERS_PER_SAMPLE}" \
   --min_seq_length 49152 \
   --max_seq_length 65536 \
-  --yarn_factor 4.0 \
   --steps "${TRAIN_STEPS}" \
   --lr "${LR}" \
   --lr_schedule "${LR_SCHEDULE}" \
@@ -165,8 +170,8 @@ python ft_scripts/qwen_sparse_ruler/train_conv_kernel_guarded_long.py \
   --log_steps 10 \
   --save_steps "${SAVE_STEPS}"
 
-python ft_scripts/qwen_sparse_ruler/verify_qwen_conv_kernel.py --path "${OUT_PATH}"
-python ft_scripts/qwen_sparse_ruler/verify_qwen_conv_kernel.py --path "${OUT_PATH%.pt}_ema.pt"
+python ft_scripts/sparse_ruler_qwen/verify_qwen_conv_kernel.py --path "${OUT_PATH}"
+python ft_scripts/sparse_ruler_qwen/verify_qwen_conv_kernel.py --path "${OUT_PATH%.pt}_ema.pt"
 
 echo "Qwen3-8B 48K-64K T0.65 multikey/QA2 training complete."
 echo "Raw checkpoint: ${OUT_PATH}"

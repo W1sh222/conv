@@ -33,6 +33,13 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
 from transformers import AutoTokenizer
+from transformers.utils.versions import require_version
+
+
+require_version(
+    "transformers==4.51.0",
+    "RULER-Mix dataset construction targets Transformers 4.51.0 tokenizers.",
+)
 
 
 # ----------------------------- basic utils -----------------------------
@@ -222,6 +229,7 @@ def prompt_only_text(tokenizer, messages: List[Dict[str, str]]) -> str:
         prompt_messages,
         tokenize=False,
         add_generation_prompt=True,
+        enable_thinking=False,
     )
 
 
@@ -578,7 +586,11 @@ def main() -> None:
     args = parser.parse_args()
 
     rng = random.Random(args.seed)
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.model,
+        use_fast=True,
+        trust_remote_code=True,
+    )
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 

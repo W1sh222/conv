@@ -13,7 +13,9 @@ set -euo pipefail
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export CUDA_LAUNCH_BLOCKING="${CUDA_LAUNCH_BLOCKING:-0}"
 export TOKENIZERS_PARALLELISM=false
-export PYTHONPATH="$(pwd):${PYTHONPATH:-}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_ROOT}"
+export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True,max_split_size_mb:128}"
 
 MODEL_PATH="/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct"
@@ -124,8 +126,10 @@ python ft_scripts/sparse_ruler/train_conv_kernel_guarded_long.py \
   --init_path "${INIT_PATH}" \
   "${RESUME_ARGS[@]}" \
   --model_precision "${MODEL_PRECISION}" \
+  --model_type llama \
   --num_layers 32 \
   --num_heads 32 \
+  --num_key_value_heads 8 \
   --kernel_size 7 \
   --layers_per_sample "${LAYERS_PER_SAMPLE}" \
   --min_seq_length 49152 \
@@ -173,8 +177,10 @@ python ft_scripts/sparse_ruler/train_conv_kernel_guarded_long.py \
   --log_steps 10 \
   --save_steps "${SAVE_STEPS}"
 
-python ft_scripts/conv_ruler/verify_conv_kernel.py --path "${OUT_PATH}"
-python ft_scripts/conv_ruler/verify_conv_kernel.py --path "${OUT_PATH%.pt}_ema.pt"
+python ft_scripts/sparse_ruler/verify_conv_kernel.py \
+  --path "${OUT_PATH}" --num_layers 32 --num_heads 32 --kernel_size 7
+python ft_scripts/sparse_ruler/verify_conv_kernel.py \
+  --path "${OUT_PATH%.pt}_ema.pt" --num_layers 32 --num_heads 32 --kernel_size 7
 
 echo "48K-64K T0.65 multikey/QA2 training complete."
 echo "Raw checkpoint: ${OUT_PATH}"
