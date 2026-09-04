@@ -13,6 +13,7 @@ eval/LongBench/pred
 eval/RULER/scripts/data/synthetic/json
 xattn/conv_ker_weights_16k
 xattn/conv_qwen
+xattn/conv_qwen3
 xattn/conv_weights
 xattn/conv_weights2
 xattn/threshold
