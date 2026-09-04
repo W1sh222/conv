@@ -18,7 +18,7 @@ QWEN3_CONV_WEIGHT_PATH = (
     "fuyicheng_workshop/Innovator-lm-evaluation-hardness/"
     "x-attention-main/xattn/conv_qwen3/"
     "conv_kernel_7x7_qwen3_8b_ruler_mix_sparse_guarded_t065_"
-    "multikey_qa2_48k64k_bf16_ema.pt"
+    ""
 )
 _WEIGHT_CACHE = {}
 

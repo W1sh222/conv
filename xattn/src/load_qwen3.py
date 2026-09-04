@@ -18,8 +18,8 @@ QWEN3_CONV_WEIGHT_PATH = (
     "/inspire/hdd/global_user/gexinmu-253108100065/Repos/"
     "fuyicheng_workshop/Innovator-lm-evaluation-hardness/"
     "x-attention-main/xattn/conv_weights2/"
-    "conv_kernel_7x7_ruler_mix_sparse_guarded_t060_boundary_corrective_"
-    "24k40k_bf16_ema_step750.pt"
+    "conv_kernel_7x7_qwen3_8b_ruler_mix_sparse_guarded_t065_multikey_qa2_48k64k_bf16"
+    "_ema_step16000.pt"
 )
 
 
