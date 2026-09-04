@@ -1108,7 +1108,8 @@ def main(default_model_type: str = "llama") -> None:
         if step % args.log_steps == 0:
             denom = max(1, running_count)
             metrics = " ".join(
-                f"{name}={value / denom:.6f}"
+                (f"{name}={value / denom:.6e}" if name == "lr"
+                 else f"{name}={value / denom:.6f}")
                 for name, value in running.items()
             )
             print(
