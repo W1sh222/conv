@@ -6,6 +6,8 @@ figures/
 flash_attn_temp/
 output/
 
+related_work/
+
 eval/HunyuanVideo
 eval/VLMEvalKit
 eval/LongBench/data_cache
