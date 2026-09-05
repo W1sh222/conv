@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage: bash scripts/run_ruler_convq1.sh [xattn|conv|minference|flex] [extra runq1.sh args]
+# Usage: bash scripts/run_ruler_convq1.sh [xattn|conv|minference|flex|full] [extra runq1.sh args]
 METHOD="${1:-conv}"
 if [[ $# -gt 0 ]]; then shift; fi
 case "${METHOD}" in
-  xattn|conv|minference|flex) ;;
+  xattn|conv|minference|flex|full) ;;
   *) echo "unsupported method: ${METHOD}" >&2; exit 2 ;;
 esac
 

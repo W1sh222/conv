@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage: bash scripts/run_ruler_convq3.sh [xattn|conv|minference|flex] [extra RULER args]
+# Usage: bash scripts/run_ruler_convq3.sh [xattn|conv|minference|flex|full] [extra RULER args]
 METHOD="${1:-conv}"
 if [[ $# -gt 0 ]]; then shift; fi
 case "${METHOD}" in
-  xattn|conv|minference|flex) ;;
-  *) echo "Unsupported method: ${METHOD} (expected xattn|conv|minference|flex)" >&2; exit 2 ;;
+  xattn|conv|minference|flex|full) ;;
+  *) echo "Unsupported method: ${METHOD} (expected xattn|conv|minference|flex|full)" >&2; exit 2 ;;
 esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

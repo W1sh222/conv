@@ -135,11 +135,11 @@ total_time=0
 for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
     SETTINGS_INFO=""
     if [[ -n ${METRIC} ]]; then SETTINGS_INFO+="${METRIC#--metric }_"; fi
-    if [[ -n ${STRIDE} ]]; then SETTINGS_INFO+="fuse_${STRIDE##* }_"; fi
-    if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
     if [[ "${METRIC#--metric }" == "minference" ]]; then
         SETTINGS_INFO+="fixed_vs_"
-    else
+    elif [[ "${METRIC#--metric }" != "full" ]]; then
+        if [[ -n ${STRIDE} ]]; then SETTINGS_INFO+="fuse_${STRIDE##* }_"; fi
+        if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
         SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
     fi
     
