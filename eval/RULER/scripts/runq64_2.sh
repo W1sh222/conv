@@ -127,7 +127,7 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
     if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
     if [[ "${METRIC#--metric }" == "minference" ]]; then SETTINGS_INFO+="fixed_vs_"; else SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"; fi
     
-    RESULTS_DIR="${ROOT_DIR}/conv_kernel_7x7_qwen3_8b_ruler_mix_sparse_guarded_t065_multikey_qa2_48k64k_bf16_16000ema${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
+    RESULTS_DIR="${ROOT_DIR}/tf451_${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
     DATA_DIR="${RESULTS_DIR}/data"
     PRED_DIR="${RESULTS_DIR}/pred"
     mkdir -p ${DATA_DIR}

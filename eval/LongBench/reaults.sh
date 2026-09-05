@@ -5,7 +5,7 @@ set -euo pipefail
 LONGBENCH_DIR="/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/eval/LongBench"
 
 # 你的预测结果目录
-DEFAULT_RESULT_DIR="${LONGBENCH_DIR}/pred/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct/minference"
+DEFAULT_RESULT_DIR="${LONGBENCH_DIR}/pred/Qwen3-8B/conv"
 
 # 可以通过第一个参数覆盖默认结果目录
 RESULT_DIR="${1:-$DEFAULT_RESULT_DIR}"
