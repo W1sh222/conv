@@ -11,7 +11,7 @@ eval/VLMEvalKit
 eval/LongBench/data_cache
 eval/LongBench/pred
 eval/RULER/scripts/data/synthetic/json
-xattn/qwen_weights
+xattn/qwen_weights/
 xattn/conv_ker_weights_16k
 xattn/conv_qwen
 xattn/conv_qwen3
