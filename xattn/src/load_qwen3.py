@@ -36,7 +36,8 @@ def load_model(
     fastprefillconfig: Optional[FastPrefillConfig] = None,
     name_or_path: str = "",
 ):
-    config = fastprefillconfig or FastPrefillConfig()
+    # Config attributes live outside the dict, so a supplied config can be falsy.
+    config = FastPrefillConfig() if fastprefillconfig is None else fastprefillconfig
     return load_model_451(
         name_or_path=name_or_path,
         fastprefillconfig=config,
