@@ -120,10 +120,21 @@ def read_hotpotqa(file):
 
 
 DOCUMENT_PROMPT = "Document {i}:\n{document}"
+
+def require_dataset_file(filename):
+    dataset_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "json", filename)
+    if not os.path.isfile(dataset_file):
+        download_script = os.path.join(os.path.dirname(dataset_file), "download_qa_dataset.sh")
+        raise FileNotFoundError(
+            f"RULER QA source data is missing: {dataset_file}. "
+            f"Run `bash {download_script}` once before evaluating qa_1/qa_2."
+        )
+    return dataset_file
+
 if args.dataset == 'squad':
-    QAS, DOCS = read_squad(os.path.join(os.path.dirname(os.path.abspath(__file__)), "json/squad.json"))
+    QAS, DOCS = read_squad(require_dataset_file("squad.json"))
 elif args.dataset == 'hotpotqa':
-    QAS, DOCS = read_hotpotqa(os.path.join(os.path.dirname(os.path.abspath(__file__)), "json/hotpotqa.json"))
+    QAS, DOCS = read_hotpotqa(require_dataset_file("hotpotqa.json"))
 else:
     raise NotImplementedError(f'{args.dataset} is not implemented.')
 

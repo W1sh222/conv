@@ -13,7 +13,6 @@ eval/HunyuanVideo
 eval/VLMEvalKit
 eval/LongBench/data_cache
 eval/LongBench/pred
-eval/RULER/scripts/data/synthetic/json
 xattn/qwen_weights/
 xattn/conv_ker_weights_16k
 xattn/conv_qwen
@@ -27,7 +26,9 @@ eval/RULER/docker/
 eval/RULER/scripts/benchmark_root/
 eval/RULER/scripts/benchmark_root_08/
 eval/RULER/scripts/benchmark_root_old
-eval/RULER/scripts/data/synthetic/json/
+# Keep dataset download utilities in Git, but not the downloaded RULER data.
+eval/RULER/scripts/data/synthetic/json/*
+!eval/RULER/scripts/data/synthetic/json/download_qa_dataset.sh
 
 # =========================
 # Python cache

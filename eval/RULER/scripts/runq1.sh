@@ -52,6 +52,14 @@ if [ -z "${TASKS}" ]; then
     exit 1
 fi
 
+# Optional whitespace- or comma-separated task filter. This is useful for
+# running one task without maintaining another config_tasks*.sh partition.
+# Example: RULER_TASKS=qa_1 bash runq1.sh qwen3-8b synthetic ...
+if [[ -n "${RULER_TASKS:-}" ]]; then
+    read -r -a SELECTED_TASKS <<< "${RULER_TASKS//,/ }"
+    TASKS=("${SELECTED_TASKS[@]}")
+fi
+
 # Parse additional arguments with defaults
 METRIC=${METRIC:-"--metric xattn"} # Default: xattn
 PRINT_DETAIL=${PRINT_DETAIL:-""}

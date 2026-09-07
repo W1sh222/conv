@@ -2,6 +2,7 @@
 set -euo pipefail
 
 # Usage: bash scripts/run_ruler_convq1.sh [xattn|conv|minference|flex|full] [extra runq1.sh args]
+# Run only qa_1 with: RULER_TASKS=qa_1 bash scripts/run_ruler_convq1.sh conv
 METHOD="${1:-conv}"
 if [[ $# -gt 0 ]]; then shift; fi
 case "${METHOD}" in
