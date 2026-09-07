@@ -30,6 +30,9 @@ eval/RULER/scripts/benchmark_root_old
 eval/RULER/scripts/data/synthetic/json/*
 !eval/RULER/scripts/data/synthetic/json/download_qa_dataset.sh
 
+hotpotqa.json
+squad.json
+
 # =========================
 # Python cache
 # =========================
