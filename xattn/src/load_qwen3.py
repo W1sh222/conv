@@ -17,9 +17,9 @@ QWEN3_NUM_KEY_VALUE_HEADS = 8
 QWEN3_CONV_WEIGHT_PATH = (
     "/inspire/hdd/global_user/gexinmu-253108100065/Repos/"
     "fuyicheng_workshop/Innovator-lm-evaluation-hardness/"
-    "x-attention-main/xattn/qwen_weights/conv_qwen3/"
-    "conv_kernel_7x7_qwen3_8b_ruler_mix_sparse_guarded_t065_multikey_qa2_48k64k_bf16"
-    "_ema_step16000.pt"
+    "x-attention-main/xattn/qwen_weights/conv_qwen3_boundary_v2/"
+    "conv_kernel_7x7_qwen3_8b_boundary_v2_t065_s16_48k64k_bf16_ema_step20000"
+    ".pt"
 )
 
 

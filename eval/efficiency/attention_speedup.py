@@ -32,20 +32,21 @@ except Exception:
 import os
 import pickle
 import time
+import argparse
+import gc
+from pathlib import Path
 
 import torch
 from tqdm import tqdm
 from transformers import StaticCache
 
 from eval.efficiency.generate_prompt import generate_prompt
-from xattn.src.load_llama import load_fake_model, FastPrefillConfig
-from xattn.threshold.llama_threshold import llama_fuse_8, llama_fuse_16
 
 
 # =========================
-# Conv 配置
+# Model-specific Conv configuration is resolved after parsing --model-kind.
 # =========================
-CONV_WEIGHT_PATH = "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn/conv_weights/conv_kernel_7x7_ruler_mix_guarded_t06_top16_1e4_step9500_topk08.pt"
+CONV_WEIGHT_PATH = None
 
 # 如果 Conv 仍然 illegal memory access，可以先改成 True 跑通
 CONV_SAFE_TOPK = False
@@ -70,6 +71,33 @@ if not (0.0 < TOPK_RATIO <= 1.0):
     raise ValueError(
         f"TOPK_RATIO must be in (0, 1], got {TOPK_RATIO}"
     )
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Transformers 4.51 Llama/Qwen3 sparse-prefill efficiency benchmark"
+    )
+    parser.add_argument("--model-kind", choices=("llama", "qwen3"), default="llama")
+    parser.add_argument("--model-path", default=None)
+    parser.add_argument("--conv-weight-path", default=None)
+    parser.add_argument(
+        "--lengths",
+        default=os.environ.get("EFFICIENCY_LENGTHS", "4,8,16,32,64,128"),
+        help="Comma-separated sequence lengths in K tokens",
+    )
+    parser.add_argument(
+        "--layer", type=int, default=int(os.environ.get("EFFICIENCY_LAYER", "12"))
+    )
+    parser.add_argument(
+        "--iterations", type=int,
+        default=int(os.environ.get("EFFICIENCY_ITERATIONS", "50")),
+    )
+    parser.add_argument(
+        "--warmups", type=int,
+        default=int(os.environ.get("EFFICIENCY_WARMUPS", "30")),
+    )
+    parser.add_argument("--cache-dir", default=None)
+    return parser.parse_args()
 
 
 def benchmark_cuda(fn, num_iterations=50):
@@ -104,8 +132,52 @@ def run_density_once(fn):
 
 
 if __name__ == "__main__":
+    args = parse_args()
+    if args.model_kind == "llama":
+        from xattn.src.load_llama import (
+            FastPrefillConfig,
+            LLAMA_CONV_WEIGHT_PATH,
+            load_fake_model,
+        )
+        from xattn.src.Conv import Conv_prefill
 
-    lens = [4, 8, 16, 32, 64, 128]
+        default_model_path = (
+            "/inspire/hdd/global_user/gexinmu-253108100065/Resources/"
+            "models/LLMs/Llama-3.1-8B-Instruct"
+        )
+        default_conv_weight_path = LLAMA_CONV_WEIGHT_PATH
+    else:
+        from xattn.src.load_qwen3 import (
+            FastPrefillConfig,
+            QWEN3_CONV_WEIGHT_PATH,
+            load_fake_model,
+        )
+        from xattn.src.Conv_qwen3 import Conv_prefill
+
+        default_model_path = (
+            "/inspire/hdd/global_user/gexinmu-253108100065/Resources/"
+            "models/LLMs/Qwen3-8B"
+        )
+        default_conv_weight_path = QWEN3_CONV_WEIGHT_PATH
+
+    model_path = args.model_path or default_model_path
+    CONV_WEIGHT_PATH = args.conv_weight_path or default_conv_weight_path
+    cache_dir = Path(
+        args.cache_dir
+        or f"output/efficiency/{args.model_kind}/{Path(model_path).name}/layer_{args.layer}"
+    )
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    lens = [int(value.strip()) for value in args.lengths.split(",") if value.strip()]
+    if not lens or any(value <= 0 for value in lens):
+        raise ValueError("--lengths must contain positive comma-separated K values")
+    if args.iterations <= 0 or args.warmups < 0:
+        raise ValueError("--iterations must be positive and --warmups non-negative")
+
+    print(
+        f"[Efficiency] transformers=4.51.0 model_kind={args.model_kind} "
+        f"model={model_path} conv_weight={CONV_WEIGHT_PATH} "
+        f"lengths={lens}K layer={args.layer} topk_ratio={TOPK_RATIO}"
+    )
 
     speedups_flex = []
     speedups_xattn_8 = []
@@ -113,8 +185,6 @@ if __name__ == "__main__":
     speedups_conv_8 = []
     speedups_conv_16 = []
     speedups_minfer = []
-
-    past_key_values = None
 
     for seq_k in lens:
         print(f"Testing {seq_k}K")
@@ -124,32 +194,32 @@ if __name__ == "__main__":
 
         seq_len = seq_k * 1024
 
-        query_path = f"output/query_{seq_len}.pkl"
-        key_path = f"output/key_{seq_len}.pkl"
+        query_path = cache_dir / f"query_{seq_len}.pkl"
+        key_path = cache_dir / f"key_{seq_len}.pkl"
 
         config = FastPrefillConfig(metric="xattn", stride=16)
-        layer_to_save = 12
+        layer_to_save = args.layer
 
         if not os.path.exists(query_path) or not os.path.exists(key_path):
+            query_path.unlink(missing_ok=True)
+            key_path.unlink(missing_ok=True)
             model, tokenizer = load_fake_model(
-                name_or_path="/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct",
+                name_or_path=model_path,
                 layer_to_save=layer_to_save,
                 target_len=seq_len,
+                output_dir=str(cache_dir),
             )
 
             input_ids = generate_prompt(tokenizer, seq_len)
             chunk_size = 4096
 
-            if past_key_values is not None:
-                past_key_values.reset()
-            else:
-                past_key_values = StaticCache(
-                    config=model.config,
-                    batch_size=1,
-                    max_cache_len=300000,
-                    device=model.device,
-                    dtype=model.dtype,
-                )
+            past_key_values = StaticCache(
+                config=model.config,
+                batch_size=1,
+                max_cache_len=seq_len,
+                device=model.device,
+                dtype=model.dtype,
+            )
 
             with torch.no_grad():
                 for i in tqdm(
@@ -167,6 +237,10 @@ if __name__ == "__main__":
                     )
 
                     past_key_values = output.past_key_values
+
+            del output, input_ids, past_key_values, model, tokenizer
+            gc.collect()
+            torch.cuda.empty_cache()
 
         with open(query_path, "rb") as f:
             q = pickle.load(f)
@@ -191,18 +265,10 @@ if __name__ == "__main__":
         gamma = 0.95
         tau = 0.1
 
-        # XAttention / Conv threshold (ignored when topk_ratio is set)
-        threshold_8 = torch.tensor(
-            llama_fuse_8,
-            dtype=torch.float32,
-            device=q.device,
-        )[layer_to_save]
-
-        threshold_16 = torch.tensor(
-            llama_fuse_16,
-            dtype=torch.float32,
-            device=q.device,
-        )[layer_to_save]
+        # Top-K ratio mode ignores threshold. A scalar avoids the removed
+        # legacy, Llama-only threshold table dependency.
+        threshold_8 = 0.9
+        threshold_16 = 0.9
 
         v = torch.randn(
             q.shape,
@@ -210,8 +276,8 @@ if __name__ == "__main__":
             device="cuda",
         ).contiguous()
 
-        num_iterations = 50
-        num_warmups = 30
+        num_iterations = args.iterations
+        num_warmups = args.warmups
 
         # =========================
         # Warmup
@@ -284,7 +350,7 @@ if __name__ == "__main__":
 
             if FULL_PREFILL:
                 try:
-                    Full_prefill(q, k, v, causal=False)
+                    Full_prefill(q, k, v, causal=True)
                 except Exception as e:
                     print(f"[WARN] Full_prefill warmup failed: {repr(e)}")
                     FULL_PREFILL = False
@@ -297,6 +363,7 @@ if __name__ == "__main__":
                         v.transpose(1, 2),
                         gamma,
                         tau,
+                        topk_ratio=TOPK_RATIO,
                     )
                 except Exception as e:
                     print(f"[WARN] Flexprefill_prefill warmup failed: {repr(e)}")
@@ -304,7 +371,7 @@ if __name__ == "__main__":
 
             if MINFERENCE_PREFILL:
                 try:
-                    Minference_prefill(k, q, v)
+                    Minference_prefill(q, k, v)
                 except Exception as e:
                     print(f"[WARN] Minference_prefill warmup failed: {repr(e)}")
                     MINFERENCE_PREFILL = False
@@ -487,7 +554,7 @@ if __name__ == "__main__":
 
         if FULL_PREFILL:
             avg_time_flashinfer = benchmark_cuda(
-                lambda: Full_prefill(q, k, v, causal=False),
+                lambda: Full_prefill(q, k, v, causal=True),
                 num_iterations=num_iterations,
             )
         else:

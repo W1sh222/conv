@@ -52,7 +52,12 @@ def load_model(
     )
 
 
-def load_fake_model(layer_to_save: int, target_len: int, name_or_path: str = ""):
+def load_fake_model(
+    layer_to_save: int,
+    target_len: int,
+    name_or_path: str = "",
+    output_dir: str = "output",
+):
     """Compatibility helper used by the repository's efficiency benchmark."""
     model, tokenizer = load_model(
         FastPrefillConfig(metric="full"), name_or_path=name_or_path
@@ -60,4 +65,5 @@ def load_fake_model(layer_to_save: int, target_len: int, name_or_path: str = "")
     for layer in model.model.layers:
         layer.self_attn.layer_to_save = int(layer_to_save)
         layer.self_attn.target_len = int(target_len)
+        layer.self_attn.capture_output_dir = str(output_dir)
     return model, tokenizer

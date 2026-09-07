@@ -1,2 +1,5 @@
-rm -rf output/*
-CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python eval/efficiency/attention_speedup.py
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec bash "${REPO_ROOT}/scripts/run_efficiency.sh" "$@"

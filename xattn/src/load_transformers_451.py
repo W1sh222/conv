@@ -187,7 +187,7 @@ def _capture_qk_if_requested(self, query_states, key_states):
     if self.layer_idx != getattr(self, "layer_to_save", -1):
         return
     target_len = int(getattr(self, "target_len"))
-    output_dir = Path("output")
+    output_dir = Path(getattr(self, "capture_output_dir", "output"))
     output_dir.mkdir(parents=True, exist_ok=True)
     query_path = output_dir / f"query_{target_len}.pkl"
     key_path = output_dir / f"key_{target_len}.pkl"
@@ -396,4 +396,3 @@ def load_model_451(
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     return model, tokenizer
-

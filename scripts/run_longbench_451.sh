@@ -35,8 +35,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 cd "${REPO_ROOT}"
 
-# DEFAULT_TASKS="narrativeqa qasper multifieldqa_en hotpotqa 2wikimqa musique gov_report qmsum vcsum multi_news trec triviaqa samsum lsht lcc repobench-p"
-DEFAULT_TASKS="samsum lsht lcc repobench-p"
+DEFAULT_TASKS="narrativeqa qasper multifieldqa_en hotpotqa 2wikimqa musique gov_report qmsum vcsum multi_news trec triviaqa samsum lsht lcc repobench-p"
+
 
 TASKS="${LONGBENCH_TASKS:-${DEFAULT_TASKS}}"
 STRIDE_VALUE="${STRIDE:-8}"
