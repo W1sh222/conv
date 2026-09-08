@@ -94,6 +94,31 @@ def parse_args(args=None):
     )
 
     parser.add_argument(
+        "--rope_scaling_type",
+        choices=("none", "yarn"),
+        default=os.environ.get("ROPE_SCALING_TYPE", "none"),
+    )
+    parser.add_argument(
+        "--rope_factor",
+        type=float,
+        default=float(os.environ.get("ROPE_FACTOR", "4.0")),
+    )
+    parser.add_argument(
+        "--rope_original_max_position_embeddings",
+        type=int,
+        default=int(os.environ.get("ROPE_ORIGINAL_MAX_POSITION_EMBEDDINGS", "32768")),
+    )
+    parser.add_argument(
+        "--max_position_embeddings_override",
+        type=int,
+        default=(
+            int(os.environ["MAX_POSITION_EMBEDDINGS_OVERRIDE"])
+            if os.environ.get("MAX_POSITION_EMBEDDINGS_OVERRIDE")
+            else None
+        ),
+    )
+
+    parser.add_argument(
         "--no_conv_fallback_full",
         action="store_true",
         help="Disable fallback to full flash attention when conv path fails.",
@@ -793,6 +818,14 @@ def load_model_and_tokenizer(path, model_name, runtime_args):
         conv_fallback_topk=runtime_args.conv_fallback_topk,
         report_density=runtime_args.report_density,
         print_density_per_layer=runtime_args.print_density_per_layer,
+        rope_scaling_type=runtime_args.rope_scaling_type,
+        rope_factor=runtime_args.rope_factor,
+        rope_original_max_position_embeddings=(
+            runtime_args.rope_original_max_position_embeddings
+        ),
+        max_position_embeddings_override=(
+            runtime_args.max_position_embeddings_override
+        ),
     )
     model, tokenizer = load_model(fastprefillconfig, name_or_path=path)
 

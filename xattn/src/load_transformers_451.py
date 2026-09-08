@@ -15,7 +15,7 @@ from typing import Any, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from transformers.cache_utils import Cache, StaticCache
 from transformers.utils.versions import require_version
 
@@ -52,6 +52,10 @@ class BaseFastPrefillConfig(dict):
         block_topk_ratio: Optional[float] = None,
         report_density: bool = False,
         print_density_per_layer: bool = False,
+        rope_scaling_type: str = "none",
+        rope_factor: float = 4.0,
+        rope_original_max_position_embeddings: int = 32768,
+        max_position_embeddings_override: Optional[int] = None,
     ):
         super().__init__()
         metric = str(metric).lower()
@@ -65,6 +69,18 @@ class BaseFastPrefillConfig(dict):
             block_topk_ratio = float(block_topk_ratio)
             if not 0.0 < block_topk_ratio <= 1.0:
                 raise ValueError("block_topk_ratio must be in (0, 1]")
+        rope_scaling_type = str(rope_scaling_type).lower()
+        if rope_scaling_type not in {"none", "yarn"}:
+            raise ValueError("rope_scaling_type must be 'none' or 'yarn'")
+        if float(rope_factor) <= 0.0:
+            raise ValueError("rope_factor must be positive")
+        if int(rope_original_max_position_embeddings) <= 0:
+            raise ValueError("rope_original_max_position_embeddings must be positive")
+        if (
+            max_position_embeddings_override is not None
+            and int(max_position_embeddings_override) <= 0
+        ):
+            raise ValueError("max_position_embeddings_override must be positive")
 
         self.threshold = threshold
         self.print_detail = bool(print_detail)
@@ -77,6 +93,16 @@ class BaseFastPrefillConfig(dict):
         self.block_topk_ratio = block_topk_ratio
         self.report_density = bool(report_density)
         self.print_density_per_layer = bool(print_density_per_layer)
+        self.rope_scaling_type = rope_scaling_type
+        self.rope_factor = float(rope_factor)
+        self.rope_original_max_position_embeddings = int(
+            rope_original_max_position_embeddings
+        )
+        self.max_position_embeddings_override = (
+            None
+            if max_position_embeddings_override is None
+            else int(max_position_embeddings_override)
+        )
         self.density_records = []
 
     def threshold_for_layer(self, layer_idx: int, device: torch.device):
@@ -355,8 +381,41 @@ def load_model_451(
     expected_heads: int,
     expected_kv_heads: int,
 ):
+    model_config = AutoConfig.from_pretrained(
+        name_or_path,
+        trust_remote_code=True,
+    )
+    if fastprefillconfig.rope_scaling_type == "yarn":
+        model_config.rope_scaling = {
+            "rope_type": "yarn",
+            "factor": fastprefillconfig.rope_factor,
+            "original_max_position_embeddings": (
+                fastprefillconfig.rope_original_max_position_embeddings
+            ),
+        }
+        model_config.max_position_embeddings = int(
+            fastprefillconfig.max_position_embeddings_override
+            or math.ceil(
+                fastprefillconfig.rope_original_max_position_embeddings
+                * fastprefillconfig.rope_factor
+            )
+        )
+        print(
+            "[FastPrefill] rope_scaling=yarn "
+            f"factor={fastprefillconfig.rope_factor} "
+            "original_max_position_embeddings="
+            f"{fastprefillconfig.rope_original_max_position_embeddings} "
+            f"max_position_embeddings={model_config.max_position_embeddings}",
+            flush=True,
+        )
+    elif fastprefillconfig.max_position_embeddings_override is not None:
+        model_config.max_position_embeddings = int(
+            fastprefillconfig.max_position_embeddings_override
+        )
+
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
+        config=model_config,
         trust_remote_code=True,
         device_map="balanced",
         torch_dtype=torch.bfloat16,

@@ -24,6 +24,7 @@ import torch
 import torch.nn.functional as F
 from datasets import load_dataset
 from transformers import (
+    AutoConfig,
     AutoModelForCausalLM,
     AutoTokenizer,
     BitsAndBytesConfig,
@@ -515,6 +516,10 @@ def load_frozen_model(
     expected_num_layers: int,
     expected_num_heads: int,
     expected_num_key_value_heads: int,
+    rope_scaling_type: str,
+    rope_factor: float,
+    rope_original_max_position_embeddings: int,
+    max_position_embeddings_override: int,
 ):
     precision = precision.lower()
     quantization_config = None
@@ -537,8 +542,40 @@ def load_frozen_model(
     )
     print(f"[model] precision={precision} compute_dtype={dtype}")
     print(f"[model] attention_implementation={attention_impl}")
+    model_config = AutoConfig.from_pretrained(
+        model_path,
+        trust_remote_code=True,
+    )
+    if rope_scaling_type == "yarn":
+        model_config.rope_scaling = {
+            "rope_type": "yarn",
+            "factor": float(rope_factor),
+            "original_max_position_embeddings": int(
+                rope_original_max_position_embeddings
+            ),
+        }
+        model_config.max_position_embeddings = int(
+            max_position_embeddings_override
+            or math.ceil(rope_original_max_position_embeddings * rope_factor)
+        )
+        print(
+            "[model] rope_scaling=yarn "
+            f"factor={rope_factor} "
+            f"original_max_position_embeddings={rope_original_max_position_embeddings} "
+            f"max_position_embeddings={model_config.max_position_embeddings}"
+        )
+    elif max_position_embeddings_override > 0:
+        model_config.max_position_embeddings = int(
+            max_position_embeddings_override
+        )
+        print(
+            "[model] rope_scaling=none "
+            f"max_position_embeddings_override={model_config.max_position_embeddings}"
+        )
+
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
+        config=model_config,
         trust_remote_code=True,
         torch_dtype=dtype,
         quantization_config=quantization_config,
@@ -631,6 +668,22 @@ def main(default_model_type: str = "llama") -> None:
     parser.add_argument("--warmup_steps", type=int, default=0)
     parser.add_argument("--min_lr_ratio", type=float, default=0.1)
     parser.add_argument("--seed", type=int, default=24032)
+    parser.add_argument(
+        "--rope_scaling_type",
+        choices=["none", "yarn"],
+        default="none",
+    )
+    parser.add_argument("--rope_factor", type=float, default=4.0)
+    parser.add_argument(
+        "--rope_original_max_position_embeddings",
+        type=int,
+        default=32768,
+    )
+    parser.add_argument(
+        "--max_position_embeddings_override",
+        type=int,
+        default=0,
+    )
     parser.add_argument("--block_size", type=int, default=128)
     parser.add_argument("--threshold", type=float, default=0.8)
     parser.add_argument(
@@ -684,6 +737,12 @@ def main(default_model_type: str = "llama") -> None:
 
     if args.block_size != 128:
         raise ValueError("inference requires block_size=128")
+    if args.rope_factor <= 0.0:
+        raise ValueError("rope_factor must be positive")
+    if args.rope_original_max_position_embeddings <= 0:
+        raise ValueError("rope_original_max_position_embeddings must be positive")
+    if args.max_position_embeddings_override < 0:
+        raise ValueError("max_position_embeddings_override must be non-negative")
     if args.block_topk_ratio is not None and not (
         0.0 < args.block_topk_ratio <= 1.0
     ):
@@ -757,6 +816,10 @@ def main(default_model_type: str = "llama") -> None:
         args.num_layers,
         args.num_heads,
         args.num_key_value_heads,
+        args.rope_scaling_type,
+        args.rope_factor,
+        args.rope_original_max_position_embeddings,
+        args.max_position_embeddings_override,
     )
     native_context = int(
         getattr(model.config, "max_position_embeddings", args.max_seq_length)

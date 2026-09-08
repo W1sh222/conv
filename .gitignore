@@ -14,6 +14,7 @@ eval/VLMEvalKit
 eval/LongBench/data_cache
 eval/LongBench/pred
 xattn/qwen_weights/
+xattn/llama_weights/
 xattn/conv_ker_weights_16k
 xattn/conv_qwen
 xattn/conv_qwen3

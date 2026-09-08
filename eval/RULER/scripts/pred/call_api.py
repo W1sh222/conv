@@ -132,6 +132,30 @@ parser.add_argument("--conv_use_triton", action="store_true", default=True,
 parser.add_argument("--no_conv_use_triton", dest="conv_use_triton", action="store_false",
                     help="Disable Conv triton estimation path.")
 parser.add_argument("--conv_fallback_topk", type=int, default=8)
+parser.add_argument(
+    "--rope_scaling_type",
+    choices=("none", "yarn"),
+    default=os.environ.get("ROPE_SCALING_TYPE", "none"),
+)
+parser.add_argument(
+    "--rope_factor",
+    type=float,
+    default=float(os.environ.get("ROPE_FACTOR", "4.0")),
+)
+parser.add_argument(
+    "--rope_original_max_position_embeddings",
+    type=int,
+    default=int(os.environ.get("ROPE_ORIGINAL_MAX_POSITION_EMBEDDINGS", "32768")),
+)
+parser.add_argument(
+    "--max_position_embeddings_override",
+    type=int,
+    default=(
+        int(os.environ["MAX_POSITION_EMBEDDINGS_OVERRIDE"])
+        if os.environ.get("MAX_POSITION_EMBEDDINGS_OVERRIDE")
+        else None
+    ),
+)
 
 args = parser.parse_args()
 args.stop_words = list(filter(None, args.stop_words.split(',')))
@@ -174,7 +198,13 @@ fastprefillconfig = FastPrefillConfig(
     conv_use_triton=args.conv_use_triton,
     conv_fallback_topk=args.conv_fallback_topk,
     block_topk_ratio=args.block_topk_ratio,
-    report_density=True
+    report_density=True,
+    rope_scaling_type=args.rope_scaling_type,
+    rope_factor=args.rope_factor,
+    rope_original_max_position_embeddings=(
+        args.rope_original_max_position_embeddings
+    ),
+    max_position_embeddings_override=args.max_position_embeddings_override,
 )
 
 def get_llm(tokens_to_generate):
