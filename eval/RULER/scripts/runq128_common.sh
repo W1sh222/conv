@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+# Common 128K implementation mirroring runq64_1/2/3.sh. The public
+# runq128_N.sh files select the corresponding q64 task configuration.
+set -eo pipefail
+
+TASK_GROUP="${1:-}"
+shift || true
+
+# Root Directories
+GPUS="1"
+ROOT_DIR="benchmark_root"
+MODEL_DIR="/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs"
+ENGINE_DIR="."
+BATCH_SIZE=1
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
+
+# Model and Tokenizer. This is the only model-config difference from q64.
+source config_models128.sh
+MODEL_NAME=${1}
+MODEL_CONFIG=$(MODEL_SELECT ${MODEL_NAME} ${MODEL_DIR} ${ENGINE_DIR})
+IFS=":" read MODEL_PATH MODEL_TEMPLATE_TYPE MODEL_FRAMEWORK TOKENIZER_PATH TOKENIZER_TYPE OPENAI_API_KEY GEMINI_API_KEY AZURE_ID AZURE_SECRET AZURE_ENDPOINT <<< "$MODEL_CONFIG"
+if [ -z "${MODEL_PATH}" ]; then
+    echo "Model: ${MODEL_NAME} is not supported"
+    exit 1
+fi
+
+export OPENAI_API_KEY=${OPENAI_API_KEY}
+export GEMINI_API_KEY=${GEMINI_API_KEY}
+export AZURE_API_ID=${AZURE_ID}
+export AZURE_API_SECRET=${AZURE_SECRET}
+export AZURE_API_ENDPOINT=${AZURE_ENDPOINT}
+
+# Benchmark and Tasks: exact same grouping as runq64_1/2/3.sh.
+case "${TASK_GROUP}" in
+    1) source config_tasks3.sh ;;
+    2) source config_tasks4.sh ;;
+    3) source config_tasks5.sh ;;
+    *) echo "Unsupported 128K task group: ${TASK_GROUP}" >&2; exit 2 ;;
+esac
+BENCHMARK=${2}
+declare -n TASKS=$BENCHMARK
+if [ -z "${TASKS}" ]; then
+    echo "Benchmark: ${BENCHMARK} is not supported"
+    exit 1
+fi
+
+# Same optional arguments and defaults as runq64.
+METRIC=${METRIC:-"--metric xattn"}
+PRINT_DETAIL=${PRINT_DETAIL:-""}
+STRIDE=${STRIDE:-""}
+THRESHOLD=${THRESHOLD:-""}
+BLOCK_TOPK_RATIO="--block_topk_ratio ${BLOCK_TOPK_RATIO:-0.65}"
+CONV_WEIGHT_PATH=${CONV_WEIGHT_PATH:-""}
+CONV_SAFE_TOPK=${CONV_SAFE_TOPK:-""}
+CONV_TRITON=${CONV_TRITON:-""}
+
+shift 2
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --threshold) THRESHOLD="--threshold $2"; shift 2 ;;
+        --metric) METRIC="--metric $2"; shift 2 ;;
+        --print_detail) PRINT_DETAIL="--print_detail"; shift ;;
+        --stride) STRIDE="--stride $2"; shift 2 ;;
+        --block_topk_ratio) BLOCK_TOPK_RATIO="--block_topk_ratio $2"; shift 2 ;;
+        --conv_weight_path) CONV_WEIGHT_PATH="--conv_weight_path $2"; shift 2 ;;
+        --conv_safe_topk) CONV_SAFE_TOPK="--conv_safe_topk"; shift ;;
+        --no_conv_use_triton) CONV_TRITON="--no_conv_use_triton"; shift ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+if [ "$MODEL_FRAMEWORK" == "vllm" ]; then
+    python pred/serve_vllm.py \
+        --model=${MODEL_PATH} \
+        --tensor-parallel-size=${GPUS} \
+        --dtype bfloat16 \
+        --disable-custom-all-reduce \
+        &
+elif [ "$MODEL_FRAMEWORK" == "trtllm" ]; then
+    python pred/serve_trt.py --model_path=${MODEL_PATH} &
+elif [ "$MODEL_FRAMEWORK" == "sglang" ]; then
+    python -m sglang.launch_server \
+        --model-path ${MODEL_PATH} \
+        --tp ${GPUS} \
+        --port 5000 \
+        --enable-flashinfer \
+        &
+fi
+
+total_time=0
+for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
+    SETTINGS_INFO=""
+    if [[ -n ${METRIC} ]]; then SETTINGS_INFO+="${METRIC#--metric }_"; fi
+    if [[ "${METRIC#--metric }" == "minference" ]]; then
+        SETTINGS_INFO+="fixed_vs_"
+    elif [[ "${METRIC#--metric }" != "full" ]]; then
+        if [[ -n ${STRIDE} ]]; then SETTINGS_INFO+="fuse_${STRIDE##* }_"; fi
+        if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
+        SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
+    fi
+
+    RESULTS_DIR="${ROOT_DIR}/tf451_${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
+    DATA_DIR="${RESULTS_DIR}/data"
+    PRED_DIR="${RESULTS_DIR}/pred"
+    mkdir -p ${DATA_DIR}
+    mkdir -p ${PRED_DIR}
+
+    for TASK in "${TASKS[@]}"; do
+        python data/prepare.py \
+            --save_dir ${DATA_DIR} \
+            --benchmark ${BENCHMARK} \
+            --task ${TASK} \
+            --tokenizer_path ${TOKENIZER_PATH} \
+            --tokenizer_type ${TOKENIZER_TYPE} \
+            --max_seq_length ${MAX_SEQ_LENGTH} \
+            --model_template_type ${MODEL_TEMPLATE_TYPE} \
+            --num_samples ${NUM_SAMPLES} \
+            ${REMOVE_NEWLINE_TAB}
+
+        start_time=$(date +%s)
+        python pred/call_api.py \
+            --data_dir ${DATA_DIR} \
+            --save_dir ${PRED_DIR} \
+            --benchmark ${BENCHMARK} \
+            --task ${TASK} \
+            --server_type ${MODEL_FRAMEWORK} \
+            --model_name_or_path ${MODEL_PATH} \
+            --temperature ${TEMPERATURE} \
+            --top_k ${TOP_K} \
+            --top_p ${TOP_P} \
+            --batch_size ${BATCH_SIZE} \
+            ${STOP_WORDS} \
+            ${METRIC} \
+            ${THRESHOLD} \
+            ${STRIDE} \
+            ${PRINT_DETAIL} \
+            ${BLOCK_TOPK_RATIO} ${CONV_WEIGHT_PATH} ${CONV_SAFE_TOPK} ${CONV_TRITON}
+        end_time=$(date +%s)
+        time_diff=$((end_time - start_time))
+        total_time=$((total_time + time_diff))
+    done
+
+    python eval/evaluate.py \
+        --data_dir ${PRED_DIR} \
+        --benchmark ${BENCHMARK}
+done
+
+echo "Total time spent on call_api: $total_time seconds"
