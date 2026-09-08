@@ -56,6 +56,7 @@ class BaseFastPrefillConfig(dict):
         rope_factor: float = 4.0,
         rope_original_max_position_embeddings: int = 32768,
         max_position_embeddings_override: Optional[int] = None,
+        attention_implementation: str = "eager",
     ):
         super().__init__()
         metric = str(metric).lower()
@@ -81,6 +82,11 @@ class BaseFastPrefillConfig(dict):
             and int(max_position_embeddings_override) <= 0
         ):
             raise ValueError("max_position_embeddings_override must be positive")
+        attention_implementation = str(attention_implementation).lower()
+        if attention_implementation not in {"eager", "sdpa", "flash_attention_2"}:
+            raise ValueError(
+                "attention_implementation must be eager, sdpa, or flash_attention_2"
+            )
 
         self.threshold = threshold
         self.print_detail = bool(print_detail)
@@ -103,6 +109,7 @@ class BaseFastPrefillConfig(dict):
             if max_position_embeddings_override is None
             else int(max_position_embeddings_override)
         )
+        self.attention_implementation = attention_implementation
         self.density_records = []
 
     def threshold_for_layer(self, layer_idx: int, device: torch.device):
@@ -419,8 +426,13 @@ def load_model_451(
         trust_remote_code=True,
         device_map="balanced",
         torch_dtype=torch.bfloat16,
-        attn_implementation="eager",
+        attn_implementation=fastprefillconfig.attention_implementation,
     ).eval()
+    print(
+        "[FastPrefill] model_attention_implementation="
+        f"{fastprefillconfig.attention_implementation}",
+        flush=True,
+    )
     actual = (
         model.config.model_type,
         model.config.num_hidden_layers,

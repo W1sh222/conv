@@ -156,6 +156,16 @@ parser.add_argument(
         else None
     ),
 )
+parser.add_argument(
+    "--attention_implementation",
+    choices=("eager", "sdpa", "flash_attention_2"),
+    default=os.environ.get("MODEL_ATTENTION_IMPLEMENTATION", "eager"),
+    help=(
+        "Transformers model-level attention backend. Use sdpa at 128K to "
+        "avoid eager's quadratic 4-D causal-mask allocation; custom conv/xattn "
+        "prefill remains active."
+    ),
+)
 
 args = parser.parse_args()
 args.stop_words = list(filter(None, args.stop_words.split(',')))
@@ -205,6 +215,7 @@ fastprefillconfig = FastPrefillConfig(
         args.rope_original_max_position_embeddings
     ),
     max_position_embeddings_override=args.max_position_embeddings_override,
+    attention_implementation=args.attention_implementation,
 )
 
 def get_llm(tokens_to_generate):

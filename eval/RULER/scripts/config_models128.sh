@@ -13,3 +13,8 @@ export ROPE_SCALING_TYPE="${ROPE_SCALING_TYPE:-yarn}"
 export ROPE_FACTOR="${ROPE_FACTOR:-4.0}"
 export ROPE_ORIGINAL_MAX_POSITION_EMBEDDINGS="${ROPE_ORIGINAL_MAX_POSITION_EMBEDDINGS:-32768}"
 export MAX_POSITION_EMBEDDINGS_OVERRIDE="${MAX_POSITION_EMBEDDINGS_OVERRIDE:-131072}"
+
+# Avoid the eager backend's quadratic 4-D causal mask.  The custom conv/xattn
+# attention forward is still installed; SDPA controls only model-level mask
+# preparation and the exact decode fallback.
+export MODEL_ATTENTION_IMPLEMENTATION="${MODEL_ATTENTION_IMPLEMENTATION:-sdpa}"
