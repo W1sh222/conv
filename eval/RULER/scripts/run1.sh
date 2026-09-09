@@ -51,6 +51,7 @@ if [ -z "${TASKS}" ]; then
     echo "Benchmark: ${BENCHMARK} is not supported"
     exit 1
 fi
+NUM_SAMPLES="${RULER_NUM_SAMPLES:-${NUM_SAMPLES}}"
 
 # Parse additional arguments with defaults
 METRIC=${METRIC:-"--metric xattn"} # Default: xattn
@@ -135,16 +136,15 @@ total_time=0
 for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
     SETTINGS_INFO=""
     if [[ -n ${METRIC} ]]; then SETTINGS_INFO+="${METRIC#--metric }_"; fi
-    if [[ -n ${STRIDE} ]]; then SETTINGS_INFO+="fuse_${STRIDE##* }_"; fi
-    if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
     if [[ "${METRIC#--metric }" == "minference" ]]; then
         SETTINGS_INFO+="fixed_vs_"
-    else
+    elif [[ "${METRIC#--metric }" != "full" ]]; then
+        if [[ -n ${STRIDE} ]]; then SETTINGS_INFO+="fuse_${STRIDE##* }_"; fi
+        if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
         SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
     fi
     
-    RESULTS_DIR="${ROOT_DIR}/tf451_${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
-    # RESULTS_DIR="${ROOT_DIR}/ruler_mix_guarded_t06_top16_1e4_step9500_topk07${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
+    RESULTS_DIR="${ROOT_DIR}/llama_t065_scratch_curriculum_v1_ema_${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
     DATA_DIR="${RESULTS_DIR}/data"
     PRED_DIR="${RESULTS_DIR}/pred"
     mkdir -p ${DATA_DIR}
