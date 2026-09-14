@@ -17,14 +17,14 @@ LLAMA_NUM_KEY_VALUE_HEADS = 8
 LLAMA_CONV_WEIGHT_PATH = (
     "/inspire/hdd/global_user/gexinmu-253108100065/Repos/"
     "fuyicheng_workshop/Innovator-lm-evaluation-hardness/"
-    "x-attention-main/xattn/conv_weights2/"
-    "conv_kernel_7x7_ruler_mix_sparse_guarded_t060_boundary_corrective_"
-    "24k40k_bf16_ema_step750.pt"
+    "x-attention-main/xattn/llama_weights/"
+    "conv_llama_t065_scratch_curriculum_v1/"
+    "stage3_48k64k_t065_bf16_ema.pt"
 )
 
 
 class FastPrefillConfig(BaseFastPrefillConfig):
-    def __init__(self, threshold=None, stride=16, **kwargs):
+    def __init__(self, threshold=None, stride=8, **kwargs):
         super().__init__(
             # A top-k ratio disables threshold selection in XAttention/Conv.
             # Keep a scalar fallback so the loader has no dependency on the
