@@ -292,6 +292,14 @@ run_stage stage3 "${STAGE3_DATA}" "${STAGE2_OUT%.pt}_ema.pt" "${STAGE3_OUT}" \
   98304 131072 "${STAGE3_STEPS}" "${STAGE3_LR}" 250 \
   "${LONG_LAYERS_PER_SAMPLE}" 28 20 96 0.40 0.05 2.5 1.15 0.32 64 651033 0.10
 
+# The combined continuation entry point uses this hook to keep the original
+# three-stage curriculum and stop exactly after Stage 3.  The normal script
+# behavior is unchanged when STOP_AFTER_STAGE3 is unset.
+if [[ "${STOP_AFTER_STAGE3:-0}" == "1" ]]; then
+  echo "STOP_AFTER_STAGE3=1: Stage 1-3 complete; skipping the legacy Stage 4/5 passes."
+  exit 0
+fi
+
 # Final mixed-length pass: the lower LR and stronger teacher term are deliberate
 # guards against repeating boundary-v2's RULER collapse.
 build_dataset "${STAGE4_DATA}" "${STAGE4_SAMPLES}" 32768 131072 112 \
