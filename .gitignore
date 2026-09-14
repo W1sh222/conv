@@ -5,6 +5,7 @@
 figures/
 flash_attn_temp/
 output/
+.pptx-build/
 
 related_work/
 ft_scripts\sparse_ruler_qwen\logs\

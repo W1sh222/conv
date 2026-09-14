@@ -49,6 +49,103 @@ LOG_FILE="${LOG_DIR}/train_qwen3_t065_compensate_stage4_${MODEL_PRECISION}.log"
 # the Stage-3 anchor.
 TASK_MIX="niah_single_1:0.005,niah_single_2:0.005,niah_single_3:0.005,niah_multikey_1:0.15,niah_multivalue:0.10,niah_multiquery:0.10,vt:0.04,cwe:0.05,fwe:0.03,qa_1:0.15,qa_2:0.15,dense_general:0.215"
 
+# Command-line arguments intentionally come after the script name, so a run
+# can be reproduced without relying on shell environment assignments.  The
+# old environment-variable interface remains supported for compatibility.
+usage() {
+  cat <<'USAGE'
+Usage: bash run_ruler_mix_sparse_guarded_qwen_stage4.sh [options]
+
+Options:
+  --stage3_init PATH       Stage-3 EMA checkpoint used as the fixed anchor
+  --run_name NAME          Output/checkpoint directory name
+  --model_precision P      bf16 (default) or fp32
+  --samples N              Number of synthetic training samples
+  --steps N                Optimizer steps
+  --lr VALUE               Initial learning rate
+  --warmup_steps N         Cosine-schedule warmup steps
+  --layers_per_sample N    Number of sampled transformer layers
+  --save_steps N           Checkpoint interval
+  --task_mix MIX           Override synthetic task mixture
+  --model_path PATH        Qwen3 model directory
+  --nolima_root PATH       NoLiMa data root
+  --data PATH              Explicit JSONL dataset path
+  --out PATH               Explicit output checkpoint path
+  --no_auto_resume         Do not resume from an existing training-state file
+  --rebuild_data           Rebuild the synthetic dataset before training
+  -h, --help               Show this help
+USAGE
+}
+
+EXPLICIT_DATA_PATH=""
+EXPLICIT_OUT_PATH=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --stage3_init|--init_path)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      STAGE3_INIT="$2"; shift 2 ;;
+    --run_name)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      RUN_NAME="$2"; shift 2 ;;
+    --model_precision)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      MODEL_PRECISION="$2"; shift 2 ;;
+    --samples|--data_samples)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      DATA_SAMPLES="$2"; shift 2 ;;
+    --steps)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      TRAIN_STEPS="$2"; shift 2 ;;
+    --lr)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      LR="$2"; shift 2 ;;
+    --warmup_steps)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      WARMUP_STEPS="$2"; shift 2 ;;
+    --layers_per_sample)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      LAYERS_PER_SAMPLE="$2"; shift 2 ;;
+    --save_steps)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      SAVE_STEPS="$2"; shift 2 ;;
+    --task_mix)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      TASK_MIX="$2"; shift 2 ;;
+    --model_path)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      MODEL_PATH="$2"; shift 2 ;;
+    --nolima_root)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      NOLIMA_ROOT="$2"; shift 2 ;;
+    --data)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      EXPLICIT_DATA_PATH="$2"; shift 2 ;;
+    --out)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      EXPLICIT_OUT_PATH="$2"; shift 2 ;;
+    --no_auto_resume)
+      AUTO_RESUME=0; shift ;;
+    --rebuild_data)
+      REBUILD_DATA=1; shift ;;
+    -h|--help)
+      usage; exit 0 ;;
+    *)
+      echo "unknown argument: $1" >&2
+      usage >&2
+      exit 2 ;;
+  esac
+done
+
+# Recompute paths after CLI overrides (especially --run_name and --samples).
+WEIGHT_DIR="${XATTN_ROOT}/qwen_weights/${RUN_NAME}"
+DATA_DIR="${NOLIMA_ROOT}/synth_train/${RUN_NAME}"
+LOG_DIR="${WEIGHT_DIR}/logs"
+DATA_PATH="${EXPLICIT_DATA_PATH:-${DATA_DIR}/stage4_compensate_native_8k64k_${DATA_SAMPLES}.jsonl}"
+OUT_PATH="${EXPLICIT_OUT_PATH:-${WEIGHT_DIR}/conv_kernel_7x7_qwen3_t065_compensate_native_8k64k_s8_${MODEL_PRECISION}.pt}"
+STATE_PATH="${OUT_PATH%.pt}_train_state.pt"
+EMA_PATH="${OUT_PATH%.pt}_ema.pt"
+LOG_FILE="${LOG_DIR}/train_qwen3_t065_compensate_stage4_${MODEL_PRECISION}.log"
+
 mkdir -p "${WEIGHT_DIR}" "${DATA_DIR}" "${LOG_DIR}"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
