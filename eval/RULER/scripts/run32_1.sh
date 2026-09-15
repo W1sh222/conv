@@ -118,7 +118,7 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
     if [[ -n ${STRIDE} ]]; then SETTINGS_INFO+="fuse_${STRIDE##* }_"; fi
     if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
     
-    RESULTS_DIR="${ROOT_DIR}/nolima_ruler${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
+    RESULTS_DIR="${ROOT_DIR}/${RULER_RUN_TAG:-conv_llama_t065_stage3_shortmix_32k48k_bf16_ema_step2300}_${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
     DATA_DIR="${RESULTS_DIR}/data"
     PRED_DIR="${RESULTS_DIR}/pred"
     mkdir -p ${DATA_DIR}

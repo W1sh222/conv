@@ -12,7 +12,7 @@ esac
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 XATTN_ROOT="/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn"
-DEFAULT_CONV_WEIGHT="${XATTN_ROOT}/llama_weights/conv_llama_t065_scratch_curriculum_v1/stage3_48k64k_t065_bf16_ema.pt"
+DEFAULT_CONV_WEIGHT="${XATTN_ROOT}/llama_weights/conv_llama_t065_stage3_shortmix_32k48k_v1/conv_kernel_7x7_llama_t065_stage3_shortmix_32k48k_bf16_ema_step2300.pt"
 cd "${REPO_ROOT}/eval/RULER/scripts"
 
 EXTRA_ARGS=("$@")

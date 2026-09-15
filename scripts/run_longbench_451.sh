@@ -41,16 +41,27 @@ DEFAULT_TASKS="narrativeqa qasper multifieldqa_en hotpotqa 2wikimqa musique gov_
 TASKS="${LONGBENCH_TASKS:-${DEFAULT_TASKS}}"
 STRIDE_VALUE="${STRIDE:-8}"
 TOPK_VALUE="${BLOCK_TOPK_RATIO:-0.65}"
+OUTPUT_TAG=""
+if [[ "${MODEL_KIND}" == "llama" ]]; then
+  OUTPUT_TAG="${LONGBENCH_RESULT_TAG:-conv_llama_t065_stage3_shortmix_32k48k_bf16_ema_step2300}"
+fi
+OUTPUT_TAG_ARGS=()
+RESULTS_SUBDIR="${METHOD}"
+if [[ -n "${OUTPUT_TAG}" ]]; then
+  OUTPUT_TAG_ARGS+=(--result_tag "${OUTPUT_TAG}")
+  RESULTS_SUBDIR="${OUTPUT_TAG}/${METHOD}"
+fi
 
 for TASK in ${TASKS}; do
   bash scripts/longbench.sh \
     "${MODEL_PATH}" "${TASK}" "${METHOD}" \
     --stride "${STRIDE_VALUE}" \
     --block_topk_ratio "${TOPK_VALUE}" \
+    "${OUTPUT_TAG_ARGS[@]}" \
     "${EXTRA_ARGS[@]}"
 done
 
 MODEL_OUTPUT_NAME="$(basename "${MODEL_PATH}")"
 python -u eval/LongBench/eval.py \
   --model "${MODEL_OUTPUT_NAME}" \
-  --results_path "eval/LongBench/pred/${MODEL_OUTPUT_NAME}/${METHOD}/"
+  --results_path "eval/LongBench/pred/${MODEL_OUTPUT_NAME}/${RESULTS_SUBDIR}/"

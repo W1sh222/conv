@@ -18,8 +18,8 @@ LLAMA_CONV_WEIGHT_PATH = (
     "/inspire/hdd/global_user/gexinmu-253108100065/Repos/"
     "fuyicheng_workshop/Innovator-lm-evaluation-hardness/"
     "x-attention-main/xattn/llama_weights/"
-    "conv_llama_t065_scratch_curriculum_v1/"
-    "stage3_48k64k_t065_bf16_ema.pt"
+    "conv_llama_t065_stage3_shortmix_32k48k_v1/"
+    "conv_kernel_7x7_llama_t065_stage3_shortmix_32k48k_bf16_ema_step2300.pt"
 )
 
 

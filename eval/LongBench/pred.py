@@ -38,6 +38,12 @@ def parse_args(args=None):
     parser.add_argument("--e", action="store_true", help="Evaluate on LongBench-E")
 
     parser.add_argument("--task", type=str, help="task name", required=True)
+    parser.add_argument(
+        "--result_tag",
+        type=str,
+        default="",
+        help="Optional run/checkpoint tag added below the model prediction directory.",
+    )
 
     parser.add_argument(
         "--method",
@@ -920,6 +926,8 @@ if __name__ == "__main__":
 
         pred_root = "eval/LongBench/pred_e" if args.e else "eval/LongBench/pred"
         pred_dir = f"{pred_root}/{model_output_name}"
+        if args.result_tag:
+            pred_dir = f"{pred_dir}/{args.result_tag}"
         os.makedirs(pred_dir, exist_ok=True)
 
         if args.method == "full":

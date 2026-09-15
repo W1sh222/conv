@@ -144,7 +144,7 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
         SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
     fi
     
-    RESULTS_DIR="${ROOT_DIR}/stage3_48k64k_t065_bf16_ema_${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
+    RESULTS_DIR="${ROOT_DIR}/${RULER_RUN_TAG:-conv_llama_t065_stage3_shortmix_32k48k_bf16_ema_step2300}_${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
     DATA_DIR="${RESULTS_DIR}/data"
     PRED_DIR="${RESULTS_DIR}/pred"
     mkdir -p ${DATA_DIR}
