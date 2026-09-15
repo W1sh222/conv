@@ -45,7 +45,7 @@ case "${TASK_GROUP}" in
         exit 2
         ;;
 esac
-NUM_SAMPLES="${RULER_NUM_SAMPLES:-1000}"
+NUM_SAMPLES="${RULER_NUM_SAMPLES:-100}"
 
 BENCHMARK=${2}
 declare -n TASKS=$BENCHMARK
