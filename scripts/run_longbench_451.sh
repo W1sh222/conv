@@ -43,7 +43,7 @@ STRIDE_VALUE="${STRIDE:-8}"
 TOPK_VALUE="${BLOCK_TOPK_RATIO:-0.65}"
 OUTPUT_TAG=""
 if [[ "${MODEL_KIND}" == "llama" ]]; then
-  OUTPUT_TAG="${LONGBENCH_RESULT_TAG:-conv_llama_t065_stage3_shortmix_32k48k_bf16_ema_step2300}"
+  OUTPUT_TAG="${LONGBENCH_RESULT_TAG:-conv_kernel_7x7_ruler_mix_sparse_guarded_long_t07_24k32k_bf16_step18000}"
 fi
 OUTPUT_TAG_ARGS=()
 RESULTS_SUBDIR="${METHOD}"

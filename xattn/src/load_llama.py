@@ -17,9 +17,8 @@ LLAMA_NUM_KEY_VALUE_HEADS = 8
 LLAMA_CONV_WEIGHT_PATH = (
     "/inspire/hdd/global_user/gexinmu-253108100065/Repos/"
     "fuyicheng_workshop/Innovator-lm-evaluation-hardness/"
-    "x-attention-main/xattn/llama_weights/"
-    "conv_llama_t065_stage3_shortmix_32k48k_v1/"
-    "conv_kernel_7x7_llama_t065_stage3_shortmix_32k48k_bf16_ema_step2300.pt"
+    "x-attention-main/xattn/conv_weights/"
+    "conv_kernel_7x7_ruler_mix_sparse_guarded_long_t07_24k32k_bf16_step18000.pt"
 )
 
 
