@@ -13,13 +13,14 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 export MODEL_ATTENTION_IMPLEMENTATION="${MODEL_ATTENTION_IMPLEMENTATION:-sdpa}"
 export RULER_NUM_SAMPLES="${RULER_NUM_SAMPLES:-100}"
-XATTN_ROOT="/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn"
-DEFAULT_CONV_WEIGHT="${XATTN_ROOT}/conv_weights/conv_kernel_7x7_ruler_mix_sparse_guarded_long_t07_24k32k_bf16_step18000.pt"
 cd "${REPO_ROOT}/eval/RULER/scripts"
 
 EXTRA_ARGS=("$@")
 if [[ "${METHOD}" == "conv" ]]; then
-  EXTRA_ARGS+=(--conv_weight_path "${CONV_WEIGHT_PATH:-${DEFAULT_CONV_WEIGHT}}")
+  source "${REPO_ROOT}/scripts/resolve_conv_eval_args.sh"
+  resolve_conv_eval_args "initial_vertical_diag"
+else
+  export RULER_RUN_TAG="other_method"
 fi
 
 exec bash ./run64_3.sh llama3.1-8b-chat synthetic \

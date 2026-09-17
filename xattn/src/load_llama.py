@@ -14,12 +14,10 @@ from xattn.src.load_transformers_451 import (
 LLAMA_NUM_LAYERS = 32
 LLAMA_NUM_ATTENTION_HEADS = 32
 LLAMA_NUM_KEY_VALUE_HEADS = 8
-LLAMA_CONV_WEIGHT_PATH = (
-    "/inspire/hdd/global_user/gexinmu-253108100065/Repos/"
-    "fuyicheng_workshop/Innovator-lm-evaluation-hardness/"
-    "x-attention-main/xattn/conv_weights/"
-    "conv_kernel_7x7_ruler_mix_sparse_guarded_long_t07_24k32k_bf16_step18000.pt"
-)
+# Reproducible baseline: vertical line = 1 and main diagonal = 1.
+# Conv.py expands this sentinel to [1, 1, 7, 7] at runtime; no learned
+# checkpoint is loaded for this experiment.
+LLAMA_CONV_WEIGHT_PATH = "initial_vertical_diag"
 
 
 class FastPrefillConfig(BaseFastPrefillConfig):

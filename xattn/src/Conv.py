@@ -18,6 +18,10 @@ _STATIC_PREFILL_TENSOR_CACHE = {}
 # Default paths for conv kernel weights
 _CONV_WEIGHT_DIR = os.path.join(os.path.dirname(__file__), "..", "conv_weights")
 _DEFAULT_WEIGHT_PATH = None
+_INITIAL_VERTICAL_DIAG_NAMES = {
+    "initial_vertical_diag",
+    "__initial_vertical_diag__",
+}
 
 
 def _get_conv_weight(kernel_size=7, weight_path=None, device=None):
@@ -48,8 +52,18 @@ def _get_conv_weight(kernel_size=7, weight_path=None, device=None):
         return _CONV_WEIGHT_CACHE[cache_key]
     
     weight = None
+    normalized_path = (
+        str(weight_path).strip().lower() if weight_path is not None else None
+    )
 
-    if weight_path is not None and os.path.exists(weight_path):
+    # This sentinel is intentional: the original baseline kernel is generated
+    # exactly, instead of depending on a machine-specific .pt path.
+    if normalized_path in _INITIAL_VERTICAL_DIAG_NAMES:
+        from xattn.src.conv_initial import make_initial_conv_weight
+
+        print("using initial vertical+diagonal 7x7 conv kernel", flush=True)
+        weight = make_initial_conv_weight(kernel_size, device=device)
+    elif weight_path is not None and os.path.exists(weight_path):
         print("loading weight_path:", weight_path)
         weight = torch.load(weight_path, map_location=device, weights_only=True)
     elif explicit_weight_path:
