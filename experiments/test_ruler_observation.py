@@ -98,6 +98,7 @@ class RulerObservationTests(unittest.TestCase):
         generator = next(item for item in cmd if item.endswith("freq_words_extraction.py"))
         self.assertTrue(generator.endswith("freq_words_extraction.py"))
         self.assertEqual(cmd[cmd.index("--alpha") + 1], "2.0")
+        self.assertEqual(cmd[cmd.index("--length-increment") + 1], "32")
         row = {"input": "foo bar baz", "outputs": ["foo", "bar", "baz"]}
         item = pipeline.convert_record(row, "fwe", task)
         self.assertEqual(item["label"], "foo, bar, baz")

@@ -148,7 +148,10 @@ def generation_command(a, task, template_name, out):
         for key in ("num_chains", "num_hops"):
             cmd += ["--" + key, str(task["args"][key])]
     else:
-        cmd += ["--alpha", str(task["args"]["alpha"])]
+        # The legacy FWE generator advances by roughly 1K words at 32K,
+        # leaving too much unused context for a requested q=255 block.
+        cmd += ["--alpha", str(task["args"]["alpha"]),
+                "--length-increment", "32"]
     return cmd
 
 

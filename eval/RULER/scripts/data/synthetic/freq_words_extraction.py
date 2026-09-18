@@ -67,6 +67,8 @@ parser.add_argument("--coded_wordlen", type=int, default=6, help="length of synt
 parser.add_argument("--vocab_size", type=int, default=-1, help='synthetic vocab size to sample from')
 parser.add_argument("--alpha", type=float, default=2.0, help='zeta distribution alpha')
 parser.add_argument("--add_fewshot", action="store_true", default=False)
+parser.add_argument("--length-increment", type=int, default=0,
+                    help="Word-count step used to fill the requested prompt length; 0 keeps the legacy step.")
 
 args = parser.parse_args()
 random.seed(args.random_seed)
@@ -113,6 +115,7 @@ def generate_input_output(max_len, num_words=-1, coded_wordlen=6, vocab_size=200
 def sys_kwext(num_samples: int, max_seq_length: int, incremental: int = 10):
     write_jsons = []
     tokens_to_generate = args.tokens_to_generate
+    length_increment = args.length_increment or max(1, max_seq_length // 32)
 
     vocab_size = max_seq_length // 50 if args.vocab_size == -1 else args.vocab_size
 
@@ -121,7 +124,7 @@ def sys_kwext(num_samples: int, max_seq_length: int, incremental: int = 10):
     _, _, num_example_words = generate_input_output(input_max_len, 
                                                     coded_wordlen=args.coded_wordlen, 
                                                     vocab_size=vocab_size, 
-                                                    incremental=input_max_len//32, 
+                                                    incremental=length_increment,
                                                     alpha=args.alpha) 
     print('num_example_words:', num_example_words)
     # Generate samples
@@ -133,7 +136,7 @@ def sys_kwext(num_samples: int, max_seq_length: int, incremental: int = 10):
                                                    num_words=num_example_words,
                                                    coded_wordlen=args.coded_wordlen, 
                                                    vocab_size=vocab_size,
-                                                   incremental=input_max_len//32,
+                                                   incremental=length_increment,
                                                    alpha=args.alpha)
         
 

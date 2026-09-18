@@ -51,6 +51,23 @@ if [[ ! -f "${DATA_ROOT}/observation.jsonl" ]]; then
   fi
 fi
 
+# q=255 needs at least one prompt token in block 255. Fail once before
+# loading the model for every layer if the generated FWE prompt is shorter.
+PROMPT_TOKENS=$(python - "${DATA_ROOT}/pipeline.json" <<'PY'
+import json
+import sys
+
+manifest = json.load(open(sys.argv[1], encoding="utf-8"))
+print(int(manifest["samples"][0]["prompt_tokens"]))
+PY
+)
+MIN_PROMPT_TOKENS=$((QUERY_BLOCK * 128 + 1))
+if (( PROMPT_TOKENS < MIN_PROMPT_TOKENS )); then
+  echo "FWE prompt has ${PROMPT_TOKENS} tokens, but query_block=${QUERY_BLOCK} requires at least ${MIN_PROMPT_TOKENS}." >&2
+  echo "Use a new OUTPUT_ROOT so FWE data is regenerated with the fine length step." >&2
+  exit 1
+fi
+
 for layer in $(seq "$START_LAYER" -1 "$END_LAYER"); do
   LAYER_ROOT="${OUTPUT_ROOT}/layer_${layer}"
   SWAP_ROOT="${LAYER_ROOT}/swap"

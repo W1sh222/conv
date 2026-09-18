@@ -86,3 +86,5 @@ output/ruler_observation/fwe_32k_seed42/layer_16/observation2_line6/
 ```
 
 脚本会先生成一次 FWE 数据，然后复用同一条数据逐层运行。它会跑完整个预先指定的层范围，不会因为某一层得到 `true` 就提前停止或丢弃其他层；失败的层会写入 `status.txt`，其他层继续执行。
+
+FWE 生成器已使用较细的长度步长填充 32K prompt，使 `query_block=255` 有机会落在有效范围内。脚本会在加载模型前检查实际 prompt token 数；若少于 `255 * 128 + 1 = 32641`，会直接报错并要求使用新的输出目录重新生成数据。
