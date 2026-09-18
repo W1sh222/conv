@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate repository-standard RULER data, then run the label-loss swap test."""
+"""Generate repository-standard RULER VT data, then run the label-loss swap test."""
 from __future__ import annotations
 
 import argparse
@@ -22,8 +22,6 @@ def parser():
     p.add_argument("--model", help="Local model path; default: Qwen3-8B from existing eval config")
     p.add_argument("--model-template", choices=["qwen3", "meta-llama3"], default=None,
                    help="Normally inferred from local model config.json")
-    p.add_argument("--task", choices=["vt", "fwe"], default="vt",
-                   help="RULER synthetic task: variable tracking or frequent-word extraction")
     p.add_argument("--seq-length", type=int, default=32768)
     p.add_argument("--num-samples", type=int, default=1)
     p.add_argument("--sample-index", type=int, default=0)
@@ -79,8 +77,6 @@ def environment_issues(a):
     if not model_config.is_file():
         issues.append(f"Local model config not found: {model_config}; supply --model on the GPU host")
     required = ["yaml", "numpy", "tqdm", "tenacity", "transformers"]
-    if a.task == "fwe":
-        required.append("scipy")
     if not a.prepare_only:
         required += ["torch", "accelerate", "triton", "block_sparse_attn"]
         if not a.no_plots:
@@ -104,14 +100,13 @@ def environment_issues(a):
     return issues
 
 
-def load_task(task_name):
+def load_task():
     import yaml
-    custom = yaml.safe_load((RULER / "synthetic.yaml").read_text(encoding="utf-8"))[task_name]
-    expected_generator = {"vt": "variable_tracking", "fwe": "freq_words_extraction"}[task_name]
-    if custom["task"] != expected_generator:
-        raise ValueError(f"Expected repository {task_name} task to use {expected_generator}")
+    custom = yaml.safe_load((RULER / "synthetic.yaml").read_text(encoding="utf-8"))["vt"]
+    if custom["task"] != "variable_tracking":
+        raise ValueError("Expected repository vt task to use variable_tracking")
     base = runpy.run_path(str(RULER / "data/synthetic/constants.py"))["TASKS"][custom["task"]]
-    return {**base, **custom, "name": task_name}
+    return {**base, **custom}
 
 
 def resolve_template(a):
@@ -138,38 +133,28 @@ def generation_command(a, task, template_name, out):
     templates = runpy.run_path(str(RULER / "data/template.py"))["Templates"]
     # Exactly the composition in RULER prepare.py; keep answer prefix and few-shot behavior.
     template = templates[template_name].format(task_template=task["template"]) + task["answer_prefix"]
-    generator = {"vt": "variable_tracking.py", "fwe": "freq_words_extraction.py"}[a.task]
-    cmd = [sys.executable, "-u", str(RULER / "data/synthetic" / generator),
-           "--save_dir", str(out / "raw"), "--save_name", a.task, "--subset", "validation",
+    cmd = [sys.executable, "-u", str(RULER / "data/synthetic/variable_tracking.py"),
+           "--save_dir", str(out / "raw"), "--save_name", "vt", "--subset", "validation",
            "--tokenizer_path", a.model, "--tokenizer_type", "hf",
            "--max_seq_length", str(a.seq_length), "--tokens_to_generate", str(task["tokens_to_generate"]),
            "--num_samples", str(a.num_samples), "--random_seed", str(a.seed), "--template", template]
-    if a.task == "vt":
-        for key in ("num_chains", "num_hops"):
-            cmd += ["--" + key, str(task["args"][key])]
-    else:
-        # The legacy FWE generator advances by roughly 1K words at 32K,
-        # leaving too much unused context for a requested q=255 block.
-        cmd += ["--alpha", str(task["args"]["alpha"]),
-                "--length-increment", "4"]
+    for key in ("num_chains", "num_hops"):
+        cmd += ["--" + key, str(task["args"][key])]
     return cmd
 
 
-def convert_record(row, task_name, task):
+def convert_record(row, num_hops):
     prompt, outputs = row.get("input"), row.get("outputs")
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("RULER input must be a nonempty string")
-    expected_outputs = task["args"]["num_hops"] + 1 if task_name == "vt" else 3
-    if (not isinstance(outputs, list) or len(outputs) != expected_outputs
+    if (not isinstance(outputs, list) or len(outputs) != num_hops + 1
             or any(not isinstance(x, str) or not x.strip() for x in outputs)):
-        label = "VT num_hops+1 variable names" if task_name == "vt" else "FWE three words"
-        raise ValueError(f"{task_name.upper()} requires {label} in outputs")
+        raise ValueError("VT requires all num_hops+1 variable names in outputs")
     if len(set(outputs)) != len(outputs) or any(x not in prompt for x in outputs):
-        raise ValueError(f"{task_name.upper()} outputs must be distinct and present in the prompt")
+        raise ValueError("VT variables must be distinct and present in the prompt")
     return {"prompt": prompt, "label": ", ".join(outputs), "ruler_outputs": outputs,
             "ruler_index": row.get("index"), "ruler_reported_length": row.get("length"),
-            "task": task_name,
-            "label_format": "All generated answers in generator order, comma-space separated; no EOS"}
+            "task": "vt", "label_format": "All variables in generator order, comma-space separated; no EOS"}
 
 
 def prepare_data(raw, destination, a, task, tokenizer):
@@ -178,7 +163,7 @@ def prepare_data(raw, destination, a, task, tokenizer):
         raise ValueError(f"Expected {a.num_samples} samples, found {len(rows)}")
     converted = []
     for row in rows:
-        item = convert_record(row, task["name"], task)
+        item = convert_record(row, task["args"]["num_hops"])
         # Same tokenization boundary and special-token policy as run_experiment.py.
         n_prompt = len(tokenizer.encode(item["prompt"], add_special_tokens=True))
         n_label = len(tokenizer.encode(item["label"], add_special_tokens=False))
@@ -232,9 +217,9 @@ def main():
     validate_args(a)
     a.model = a.model or default_model()
     out = (a.output or ROOT / "output/ruler_observation" /
-           f"{a.task}_{a.seq_length}_seed{a.seed}_{datetime.now():%Y%m%d_%H%M%S_%f}").resolve()
+           f"vt_{a.seq_length}_seed{a.seed}_{datetime.now():%Y%m%d_%H%M%S_%f}").resolve()
     issues = environment_issues(a)
-    manifest = {"status": "planned", "task": a.task, "arguments": vars(a), "output": str(out),
+    manifest = {"status": "planned", "task": "vt", "arguments": vars(a), "output": str(out),
                 "python": sys.executable, "environment_issues": issues,
                 "observation_command": observation_command(a, out),
                 "metric": "Mean teacher-forced label NLL, not RULER free-generation accuracy"}
@@ -253,23 +238,20 @@ def main():
             manifest["status"] = "environment_blocked"
             print("Cannot execute this experiment:\n- " + "\n- ".join(issues), file=sys.stderr)
             return 2
-        task = load_task(a.task)
+        task = load_task()
         template = resolve_template(a)
         cmd = generation_command(a, task, template, out)
         manifest.update(status="generating", task_config=task, model_template=template,
                         generation_command=cmd)
-        generator_path = RULER / "data/synthetic" / {
-            "vt": "variable_tracking.py", "fwe": "freq_words_extraction.py"
-        }[a.task]
         manifest["source_sha256"] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                                     for p in [RULER / "synthetic.yaml", RULER / "data/template.py",
-                                              RULER / "data/synthetic/constants.py", generator_path, RUNNER]}
+                                              RULER / "data/synthetic/constants.py",
+                                              RULER / "data/synthetic/variable_tracking.py", RUNNER]}
         save()
         run_logged(cmd, out / "generation.log")
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained(a.model, use_fast=True)
-        manifest["samples"] = prepare_data(out / f"raw/{a.task}/validation.jsonl",
-                                            out / "observation.jsonl", a, task, tokenizer)
+        manifest["samples"] = prepare_data(out / "raw/vt/validation.jsonl", out / "observation.jsonl", a, task, tokenizer)
         del tokenizer
         manifest["status"] = "data_ready"
         save()

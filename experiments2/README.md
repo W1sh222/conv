@@ -67,24 +67,22 @@ python -m unittest discover -s experiments2 -p "test_*.py" -v
 
 邻域线的默认半径是 3，即竖线和 `\\` 反斜线各取中心两侧 3 个块。也可以通过 `--line-radius` 修改每侧块数。
 
-## FWE 多层运行
+## VT 多层运行
 
-仓库的 RULER 流水线支持 `--task fwe`。如果要固定 `query_block=255`，从第 16 层递减运行到第 0 层，并保存每层的 Observation 1 和 Observation 2 结果，可在仓库根目录执行：
+如果要在原来的 VT 任务上固定 `query_block=255`，从第 16 层递减运行到第 0 层，并保存每层的 Observation 1 和 Observation 2 结果，可在仓库根目录执行：
 
 ```bash
-bash experiments2/run_fwe_layer_sweep.sh \
+bash experiments2/run_vt_layer_sweep.sh \
   /path/to/Qwen3-8B \
-  output/ruler_observation/fwe_32k_seed42 \
+  output/ruler_observation/vt_32k_seed42_layers \
   16 0 8 32768 42
 ```
 
 每层结果位于：
 
 ```text
-output/ruler_observation/fwe_32k_seed42/layer_16/swap/
-output/ruler_observation/fwe_32k_seed42/layer_16/observation2_line6/
+output/ruler_observation/vt_32k_seed42_layers/layer_16/swap/
+output/ruler_observation/vt_32k_seed42_layers/layer_16/observation2_line6/
 ```
 
-脚本会先生成一次 FWE 数据，然后复用同一条数据逐层运行。它会跑完整个预先指定的层范围，不会因为某一层得到 `true` 就提前停止或丢弃其他层；失败的层会写入 `status.txt`，其他层继续执行。
-
-FWE 生成器已使用较细的长度步长（4 个词）填充 32K prompt，使 `query_block=255` 有机会落在有效范围内。脚本会在加载模型前检查实际 prompt token 数；若少于 `255 * 128 + 1 = 32641`，会直接报错并要求使用新的输出目录重新生成数据。
+脚本会先生成一次 VT 数据，然后复用同一条数据逐层运行。它会跑完整个预先指定的层范围，不会因为某一层得到 `true` 就提前停止或丢弃其他层；失败的层会写入 `status.txt`，其他层继续执行。脚本会在加载模型前检查实际 prompt token 数；若少于 `255 * 128 + 1 = 32641`，会直接报错。
