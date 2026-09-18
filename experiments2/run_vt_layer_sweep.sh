@@ -4,11 +4,11 @@
 set -u -o pipefail
 
 usage() {
-  echo "Usage: $0 MODEL OUTPUT_ROOT [START_LAYER] [END_LAYER] [HEAD] [SEQ_LENGTH] [SEED]" >&2
-  echo "Example: $0 /models/Qwen3-8B output/ruler_observation/vt_32k_seed42 16 0 8 32768 42" >&2
+  echo "Usage: $0 MODEL OUTPUT_ROOT [START_LAYER] [END_LAYER] [HEAD] [SEQ_LENGTH] [SEED] [QUERY_BLOCK]" >&2
+  echo "Example: $0 /models/Qwen3-8B output/ruler_observation/vt_32k_seed42 16 0 8 32768 42 255" >&2
 }
 
-if [[ $# -lt 2 || $# -gt 7 ]]; then
+if [[ $# -lt 2 || $# -gt 8 ]]; then
   usage
   exit 2
 fi
@@ -20,7 +20,7 @@ END_LAYER=${4:-0}
 HEAD=${5:-8}
 SEQ_LENGTH=${6:-32768}
 SEED=${7:-42}
-QUERY_BLOCK=255
+QUERY_BLOCK=${8:-255}
 DATA_ROOT="${OUTPUT_ROOT}/_vt_data"
 
 if (( START_LAYER < END_LAYER )); then

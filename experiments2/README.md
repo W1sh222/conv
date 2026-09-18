@@ -75,7 +75,7 @@ python -m unittest discover -s experiments2 -p "test_*.py" -v
 bash experiments2/run_vt_layer_sweep.sh \
   /path/to/Qwen3-8B \
   output/ruler_observation/vt_32k_seed42_layers \
-  16 0 8 32768 42
+  16 0 8 32768 42 255
 ```
 
 每层结果位于：
@@ -85,4 +85,13 @@ output/ruler_observation/vt_32k_seed42_layers/layer_16/swap/
 output/ruler_observation/vt_32k_seed42_layers/layer_16/observation2_line6/
 ```
 
-脚本会先生成一次 VT 数据，然后复用同一条数据逐层运行。它会跑完整个预先指定的层范围，不会因为某一层得到 `true` 就提前停止或丢弃其他层；失败的层会写入 `status.txt`，其他层继续执行。脚本会在加载模型前检查实际 prompt token 数；若少于 `255 * 128 + 1 = 32641`，会直接报错。
+脚本会先生成一次 VT 数据，然后复用同一条数据逐层运行。它会跑完整个预先指定的层范围，不会因为某一层得到 `true` 就提前停止或丢弃其他层；失败的层会写入 `status.txt`，其他层继续执行。脚本会在加载模型前检查实际 prompt token 数；对于 query block `q`，若 prompt 少于 `q * 128 + 1` 个 token，会直接报错。
+
+命令最后一个参数是 `query_block`，省略时默认为 255。例如测试第 220 个 query block：
+
+```bash
+bash experiments2/run_vt_layer_sweep.sh \
+  /path/to/Qwen3-8B \
+  output/ruler_observation/vt_32k_seed42_q220_layers \
+  35 0 8 32768 42 220
+```
