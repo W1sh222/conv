@@ -66,3 +66,23 @@ python -m unittest discover -s experiments2 -p "test_*.py" -v
 ```
 
 邻域线的默认半径是 3，即竖线和 `\\` 反斜线各取中心两侧 3 个块。也可以通过 `--line-radius` 修改每侧块数。
+
+## FWE 多层运行
+
+仓库的 RULER 流水线支持 `--task fwe`。如果要固定 `query_block=255`，从第 16 层递减运行到第 0 层，并保存每层的 Observation 1 和 Observation 2 结果，可在仓库根目录执行：
+
+```bash
+bash experiments2/run_fwe_layer_sweep.sh \
+  /path/to/Qwen3-8B \
+  output/ruler_observation/fwe_32k_seed42 \
+  16 0 8 32768 42
+```
+
+每层结果位于：
+
+```text
+output/ruler_observation/fwe_32k_seed42/layer_16/swap/
+output/ruler_observation/fwe_32k_seed42/layer_16/observation2_line6/
+```
+
+脚本会先生成一次 FWE 数据，然后复用同一条数据逐层运行。它会跑完整个预先指定的层范围，不会因为某一层得到 `true` 就提前停止或丢弃其他层；失败的层会写入 `status.txt`，其他层继续执行。

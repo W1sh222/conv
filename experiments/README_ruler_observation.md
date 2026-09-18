@@ -1,4 +1,4 @@
-# RULER VT → block replacement observation
+# RULER block replacement observation
 
 在仓库根目录、已有的 Linux CUDA 评测环境中运行：
 
@@ -16,6 +16,17 @@ python experiments/run_ruler_observation.py \
   --output output/ruler_observation/vt_32k_seed42
 ```
 
+任务默认是 VT。FWE（frequent words extraction）可以通过 `--task fwe` 运行；它使用仓库的 `freq_words_extraction.py` 生成器，并把三个答案词按生成顺序组成 teacher-forced label：
+
+```bash
+python experiments/run_ruler_observation.py \
+  --task fwe \
+  --model /path/to/Qwen3-8B \
+  --seq-length 32768 --seed 42 \
+  --layer 16 --head 8 --query-block 255 \
+  --output output/ruler_observation/fwe_32k_seed42_l16
+```
+
 输出目录必须为空或不存在。未指定时自动生成带时间戳的目录。默认生成一条样本，并运行已有 `block_label_swap/run_experiment.py`，结束后生成 loss 图。不需要额外传数据文件。
 
 ## 数据和实验定义
@@ -25,6 +36,7 @@ python experiments/run_ruler_observation.py \
 - 直接调用任务生成器，可以避免 `prepare.py` 的无关 NLTK 下载、覆盖随机种子及 shell 拼接；请求的 seed 会实际传给生成器。生成器的非零退出码会使流水线失败。
 - `outputs` 中的五个变量**全部**组成 label，保持生成器顺序，以逗号和空格分隔；不从中挑选一个答案。使用固定序列的 teacher-forced 平均 token NLL，不是 RULER 自由生成后的字符串匹配准确率。其他正确的变量排列可能有不同 NLL。
 - 默认测试第 0 个样本、第 16 层、第 8 个 query head、最后一个 prompt query block；这些位置事先指定，未经 loss 搜索挑选。`--num-samples N` 生成 N 条，`--sample-index I` 只评测指定的一条。
+- 使用 FWE 时，`--query-block 255` 表示固定测试第 255 个 query block；所有索引从 0 开始，且实际 prompt 必须足够长以包含该 block。
 - 默认初始得分 Top-K、保留比例 0.65、stride 8、block size 128，所有层/头采用基准稀疏 mask。移除被测行已选块中初始得分最低的块，分别换入该行所有未选且因果合法的块。每次恢复基准，其他层/头/行的 mask 固定。
 - 每个候选重新进行 prompt prefill 和正确答案评分，不跳过不利结果，末尾重跑基准检查数值波动。是否有较低得分候选降低 loss，由真实结果决定。
 
@@ -50,7 +62,7 @@ Llama 只需改 `--model`，脚本根据 `config.json` 选择对应模板。使�
 ## 输出
 
 - `pipeline.json`：配置、任务参数、命令、源文件哈希、长度、状态和结果摘要。`environment_blocked` 表示环境检查失败，并未完成真实实验。
-- `raw/vt/validation.jsonl`：原始 RULER 数据。
+- `raw/<task>/validation.jsonl`：原始 RULER 数据；`<task>` 为 `vt` 或 `fwe`。
 - `observation.jsonl`：保留原 prompt 并加入完整 label 的实验输入。
 - `generation.log` / `observation.log`：生成与模型实验日志。
 - `swap/swap_losses.png`、`mask_overview.png`、`score_vs_label_loss.png`：逐块 loss、mask 以及得分与 loss 的关系图，同时输出 PDF。
