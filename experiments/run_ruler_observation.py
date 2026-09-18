@@ -151,7 +151,7 @@ def generation_command(a, task, template_name, out):
         # The legacy FWE generator advances by roughly 1K words at 32K,
         # leaving too much unused context for a requested q=255 block.
         cmd += ["--alpha", str(task["args"]["alpha"]),
-                "--length-increment", "32"]
+                "--length-increment", "4"]
     return cmd
 
 
