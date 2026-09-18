@@ -44,7 +44,7 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
     
     RESULTS_DIR="${ROOT_DIR}/${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
 
-    DATA_DIR="${RESULTS_DIR}/data"
+    DATA_DIR="${RULER_SHARED_DATA_ROOT:-/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/eval/RULER/scripts/data/ruler}/${BENCHMARK}/${MAX_SEQ_LENGTH}/data"
     PRED_DIR="${RESULTS_DIR}/pred"
     
     python eval/evaluate.py \

@@ -83,8 +83,8 @@ def draw(directory: Path, point_size: float, baseline_size: float,
     baseline = float(metadata["baseline"]["label_loss"])
     arguments = metadata["arguments"]
 
-    green = "#A8D7B0"
-    green_edge = "#32633B"
+    green = "#A9D6F5"
+    green_edge = "#3F78A0"
     orange = "#F1AA66"
     orange_edge = "#774715"
     caption = (
@@ -104,7 +104,7 @@ def draw(directory: Path, point_size: float, baseline_size: float,
         c=green,
         edgecolors=green_edge,
         linewidths=1.2,
-        s=point_size,
+        s=150,
         label="All candidates",
         zorder=3,
     )
@@ -115,8 +115,8 @@ def draw(directory: Path, point_size: float, baseline_size: float,
         edgecolors=orange_edge,
         linewidths=1.3,
         marker="s",
-        s=baseline_size,
-        label="Removed block / baseline",
+        s=150,
+        label="Removed block",
         zorder=4,
     )
     ax.axhline(
@@ -126,14 +126,17 @@ def draw(directory: Path, point_size: float, baseline_size: float,
         linewidth=1.2,
         zorder=1,
     )
-    ax.set(
-        xlabel="Initial block score",
-        ylabel="Ground-truth label loss",
-        title=caption,
+    ax.set_xlabel("Initial block score", fontsize=18)
+    ax.set_ylabel("Ground-truth label loss", fontsize=18)
+    ax.set_title(caption, fontsize=20)
+    ax.tick_params(
+        axis="both",
+        which="major",
+        labelsize=14,
     )
     legend = ax.legend(
-        loc="upper right",
-        frameon=True,
+        loc="lower right",
+        fontsize=14,
         fancybox=False,
         framealpha=1.0,
         facecolor="white",

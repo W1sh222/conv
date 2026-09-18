@@ -133,7 +133,7 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
     fi
     
     RESULTS_DIR="${ROOT_DIR}/${RULER_RUN_TAG:-conv_kernel_7x7_ruler_mix_sparse_guarded_long_t07_24k32k_bf16_step18000}_${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
-    DATA_DIR="${RESULTS_DIR}/data"
+    DATA_DIR="${RULER_SHARED_DATA_ROOT:-/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/eval/RULER/scripts/data/ruler}/${BENCHMARK}/${MAX_SEQ_LENGTH}/data"
     PRED_DIR="${RESULTS_DIR}/pred"
     mkdir -p ${DATA_DIR}
     mkdir -p ${PRED_DIR}
