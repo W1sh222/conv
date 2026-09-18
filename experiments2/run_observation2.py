@@ -17,7 +17,9 @@ def parser():
     p.add_argument("--input", nargs="+", required=True,
                    help="One or more complete experiments/block_label_swap result directories")
     p.add_argument("--output", required=True, help="New/empty output directory")
-    p.add_argument("--kernel-size", type=int, default=7)
+    p.add_argument("--line-radius", type=int, default=3,
+                   help="Number of blocks on each side of the vertical and "
+                        "backslash-diagonal neighborhood lines")
     p.add_argument("--score-caliper", type=float, default=0.15,
                    help="Maximum matched center-score gap, in within-run standard deviations")
     p.add_argument("--min-pairs", type=int, default=8)
@@ -104,8 +106,8 @@ def make_plots(output, residual_records, pairs, summary, point_size):
 
 def main():
     args = parser().parse_args()
-    if args.kernel_size < 3 or args.kernel_size % 2 == 0:
-        raise ValueError("kernel-size must be an odd integer >= 3")
+    if args.line_radius < 1:
+        raise ValueError("line-radius must be a positive integer")
     if args.score_caliper <= 0 or args.min_pairs < 2:
         raise ValueError("score-caliper must be positive and min-pairs >= 2")
     if args.permutations < 100 or args.bootstrap_samples < 100:
@@ -121,7 +123,7 @@ def main():
 
     runs, records, pairs = [], [], []
     for index, directory in enumerate(args.input):
-        run = load_run(directory, args.kernel_size, run_id=f"run_{index:03d}")
+        run = load_run(directory, args.line_radius, run_id=f"run_{index:03d}")
         runs.append(run)
         records.extend(run["records"])
         run_pairs = match_by_center(run["records"], args.score_caliper)

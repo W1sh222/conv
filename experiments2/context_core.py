@@ -8,22 +8,30 @@ from pathlib import Path
 import numpy as np
 
 
-def causal_neighborhood(scores, query_block, key_block, kernel_size=7):
-    """Return distinct, in-bounds, causally valid neighbors; exclude the center."""
+def causal_neighborhood(scores, query_block, key_block, line_radius=3):
+    """Return vertical and ``\\``-diagonal neighbors around a candidate.
+
+    ``line_radius=3`` gives six positions on each line: three on either
+    side of the center.  The vertical line varies the query-block index while
+    keeping the key-block index fixed.  The ``\\`` diagonal varies both
+    indices by the same signed offset.  The center is excluded, and only
+    in-bounds causally valid positions are retained.
+    """
     scores = np.asarray(scores, dtype=np.float64)
     if scores.ndim != 2 or scores.shape[0] != scores.shape[1]:
         raise ValueError("initial_scores must be a square 2-D block map")
-    if kernel_size < 3 or kernel_size % 2 == 0:
-        raise ValueError("kernel_size must be an odd integer >= 3")
+    if line_radius < 1:
+        raise ValueError("line_radius must be a positive integer")
     q, k = int(query_block), int(key_block)
     if not (0 <= q < scores.shape[0] and 0 <= k < scores.shape[1] and k <= q):
         raise ValueError("center block must be in bounds and causally valid")
-    radius = kernel_size // 2
     values = []
     coordinates = []
-    for nq in range(max(0, q - radius), min(scores.shape[0], q + radius + 1)):
-        for nk in range(max(0, k - radius), min(scores.shape[1], k + radius + 1)):
-            if nk <= nq and (nq, nk) != (q, k):
+    for offset in range(1, line_radius + 1):
+        for nq, nk in ((q - offset, k), (q + offset, k),
+                       (q - offset, k - offset), (q + offset, k + offset)):
+            if (0 <= nq < scores.shape[0] and 0 <= nk < scores.shape[1]
+                    and nk <= nq and (nq, nk) != (q, k)):
                 value = float(scores[nq, nk])
                 if not math.isfinite(value):
                     raise ValueError("Non-finite causally valid score in neighborhood")
@@ -34,7 +42,7 @@ def causal_neighborhood(scores, query_block, key_block, kernel_size=7):
     return np.asarray(values, dtype=np.float64), coordinates
 
 
-def load_run(directory, kernel_size=7, run_id=None):
+def load_run(directory, line_radius=3, run_id=None):
     """Load one complete block-swap sweep and derive outcome-blind context features."""
     directory = Path(directory).resolve()
     meta_file = directory / "experiment.json"
@@ -78,7 +86,7 @@ def load_run(directory, kernel_size=7, run_id=None):
             raise ValueError("Non-finite center score or label loss")
         if not np.isclose(center, logged_center, rtol=1e-5, atol=1e-8):
             raise ValueError(f"Logged score differs from block map for key block {key}")
-        neighbors, coordinates = causal_neighborhood(scores, q, key, kernel_size)
+        neighbors, coordinates = causal_neighborhood(scores, q, key, line_radius)
         records.append({
             "run_id": rid,
             "source": str(directory),
@@ -289,7 +297,7 @@ def summarize(records, pairs, permutations=20000, bootstrap_samples=20000, seed=
     return {
         "observation": "Neighborhood scores contain block-utility information beyond the center score.",
         "utility_definition": "baseline label NLL minus replacement label NLL; higher is better",
-        "neighborhood_definition": "mean initial score of distinct in-bounds causally-valid blocks in the local window, center excluded",
+        "neighborhood_definition": "mean initial score of distinct in-bounds causally-valid blocks on the vertical and backslash-diagonal lines, three blocks on each side per line, center excluded",
         "candidate_count": len(records),
         "run_count": len(set(r["run_id"] for r in records)),
         "matched_pair_count": len(pairs),

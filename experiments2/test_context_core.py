@@ -10,12 +10,13 @@ from context_core import (causal_neighborhood, load_run, match_by_center,
 
 
 class ContextExperimentTests(unittest.TestCase):
-    def test_neighborhood_excludes_center_future_and_out_of_bounds(self):
+    def test_line_neighborhood_excludes_center_future_and_out_of_bounds(self):
         scores = np.arange(25, dtype=float).reshape(5, 5)
-        values, coordinates = causal_neighborhood(scores, 4, 3, 3)
+        values, coordinates = causal_neighborhood(scores, 4, 3, line_radius=3)
         self.assertNotIn((4, 3), coordinates)
         self.assertTrue(all(k <= q for q, k in coordinates))
         self.assertTrue(all(0 <= q < 5 and 0 <= k < 5 for q, k in coordinates))
+        self.assertTrue(all((k == 3 or q - 4 == k - 3) for q, k in coordinates))
         np.testing.assert_array_equal(values, [scores[q, k] for q, k in coordinates])
 
     def test_matching_is_outcome_blind(self):
@@ -59,11 +60,11 @@ class ContextExperimentTests(unittest.TestCase):
             (path / "trials.jsonl").write_text(json.dumps(
                 {"key_block": 1, "initial_score": .1, "label_loss": .9}) + "\n", encoding="utf-8")
             np.savez(path / "block_map.npz", initial_scores=scores, selected_mask=mask)
-            run = load_run(path, kernel_size=3)
+            run = load_run(path, line_radius=1)
             self.assertEqual(len(run["records"]), 1)
             (path / "trials.jsonl").write_text("", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "every candidate"):
-                load_run(path, kernel_size=3)
+                load_run(path, line_radius=1)
 
     @staticmethod
     def synthetic_records(count=20):
