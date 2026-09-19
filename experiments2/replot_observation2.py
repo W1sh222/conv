@@ -60,14 +60,14 @@ def draw(input_dir, output_png, point_size=75.0, dpi=300):
         raise ValueError("point-size and dpi must be positive")
 
     # The previous figure used Matplotlib's defaults (10 pt for labels/ticks,
-    # 12 pt for axes titles, and 10 pt for legends). Each is increased by 2 pt.
+    # 16 pt for axes titles, and 10 pt for legends). Each is increased by 2 pt.
     plt.rcParams.update({
         "font.family": "DejaVu Sans",
-        "font.size": 12,
-        "axes.titlesize": 14,
-        "axes.labelsize": 12,
-        "xtick.labelsize": 12,
-        "ytick.labelsize": 12,
+        "font.size": 16,
+        "axes.titlesize": 18,
+        "axes.labelsize": 16,
+        "xtick.labelsize": 16,
+        "ytick.labelsize": 16,
         "legend.fontsize": 12,
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
@@ -97,7 +97,7 @@ def draw(input_dir, output_png, point_size=75.0, dpi=300):
                color="white", edgecolor="black", linewidth=1.5, zorder=4)
     ax.axhline(0, color="#777777", linestyle="--", linewidth=1)
     ax.set_xticks([0, 1], ["Lower context", "Higher context"])
-    ax.set_ylabel("Block utility (baseline loss $-$ replacement loss)")
+    ax.set_ylabel("Block utility")
     ax.set_title("Center-score-matched candidates")
     handles = [
         Line2D([0], [0], marker="o", linestyle="", markerfacecolor=orange,
@@ -115,16 +115,16 @@ def draw(input_dir, output_png, point_size=75.0, dpi=300):
     x = np.asarray([as_float(row, "context_residual") for row in candidates])
     y = np.asarray([as_float(row, "utility_residual") for row in candidates])
     ax.scatter(x, y, s=point_size, color=green, edgecolor=dark, linewidth=1.1,
-               alpha=.92, label="Candidate blocks")
+               alpha=.92, label="Candidates")
     coefficients = np.polyfit(x, y, 1)
     x_line = np.linspace(float(x.min()), float(x.max()), 200)
     correlation = float(summary["partial_neighbor_pearson_r"])
     ax.plot(x_line, np.polyval(coefficients, x_line), color="#315A85",
-            linewidth=2, label=f"Linear fit ($r={correlation:.3f}$)")
+            linewidth=2, label=f"Linear fit\n ($r={correlation:.3f}$)")
     ax.axhline(0, color="#999999", linestyle="--", linewidth=1)
     ax.axvline(0, color="#999999", linestyle="--", linewidth=1)
-    ax.set_xlabel("Neighborhood score residual\n(center-score effect removed)")
-    ax.set_ylabel("Block utility residual\n(center-score effect removed)")
+    ax.set_xlabel("Neighborhood score residual")
+    ax.set_ylabel("Block utility residual")
     ax.set_title("Additional information from local context")
     ax.legend(frameon=True, facecolor="white", edgecolor="#333333",
               framealpha=1.0, loc="best")
