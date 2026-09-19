@@ -65,6 +65,16 @@ python experiments2/replot_observation2.py \
 
 脚本只读取 `candidate_context.csv`、`matched_pairs.csv` 和 `summary.json`，不会重新运行模型，也不会改变任何 loss 或匹配结果。如果需要直接覆盖原文件，将 `--output` 改为原来的 `observation2.png` 即可。
 
+如果需要重画原始块选择图，可使用专用脚本。它只显示蓝色的 selected blocks、白色的 unselected blocks 和灰色的 causally masked blocks，自动去除橙色/绿色替换标记以及 query block 干预内容：
+
+```bash
+python experiments2/replot_mask_overview.py \
+  --input /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_layers/layer_14/swap \
+  --output /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_layers/layer_14/swap/mask_overview_original.png
+```
+
+标题只保留 layer 和 head，不再显示 query block；同时输出同名 PDF。
+
 只有当高邻域候选的平均 utility 更高，并且配对检验与控制中心得分后的残差关系方向一致时，这组数据才支持 Observation 2。如果结果不成立，脚本仍完整保存结果，不筛选有利候选。
 
 单次运行中的候选窗口彼此重叠，因此统计检验仍属于探索性证据。论文里的主要结论应来自多个预先指定的样本、层和头；`summary.json` 也会保留这一限制说明。
