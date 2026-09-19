@@ -55,6 +55,16 @@ python experiments2/run_observation2.py \
 - `matched_pairs.csv`：所有匹配对以及高邻域减低邻域的 utility 差。
 - `summary.json`：配对均值差、bootstrap 区间、胜率、配对 sign-flip 检验、偏相关和残差置换检验。
 
+如果只需要调整已有图的排版，不重新计算实验，可以运行专用重绘脚本。下面的命令会去掉最上方总标题，将坐标轴、刻度、图例和子图标题的字号分别提高 2 pt，并同时保存 PNG 和 PDF：
+
+```bash
+python experiments2/replot_observation2.py \
+  --input /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_layers/layer_14/observation2_line6 \
+  --output /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_layers/layer_14/observation2_line6/observation2_largefont.png
+```
+
+脚本只读取 `candidate_context.csv`、`matched_pairs.csv` 和 `summary.json`，不会重新运行模型，也不会改变任何 loss 或匹配结果。如果需要直接覆盖原文件，将 `--output` 改为原来的 `observation2.png` 即可。
+
 只有当高邻域候选的平均 utility 更高，并且配对检验与控制中心得分后的残差关系方向一致时，这组数据才支持 Observation 2。如果结果不成立，脚本仍完整保存结果，不筛选有利候选。
 
 单次运行中的候选窗口彼此重叠，因此统计检验仍属于探索性证据。论文里的主要结论应来自多个预先指定的样本、层和头；`summary.json` 也会保留这一限制说明。
