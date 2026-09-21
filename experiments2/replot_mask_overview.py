@@ -56,11 +56,11 @@ def draw(input_dir, output_png, dpi=300):
     title = f"Layer {layer} / Head {head}"
     plt.rcParams.update({
         "font.family": "DejaVu Sans",
-        "font.size": 12,
-        "axes.labelsize": 14,
-        "xtick.labelsize": 13,
-        "ytick.labelsize": 13,
-        "legend.fontsize": 12,
+        "font.size": 14,
+        "axes.labelsize": 16,
+        "xtick.labelsize": 15,
+        "ytick.labelsize": 15,
+        "legend.fontsize": 14,
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
     })
