@@ -57,10 +57,10 @@ def draw(input_dir, output_png, dpi=300):
     plt.rcParams.update({
         "font.family": "DejaVu Sans",
         "font.size": 14,
-        "axes.labelsize": 16,
-        "xtick.labelsize": 15,
-        "ytick.labelsize": 15,
-        "legend.fontsize": 14,
+        "axes.labelsize": 18,
+        "xtick.labelsize": 18,
+        "ytick.labelsize": 18,
+        "legend.fontsize": 16,
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
     })
