@@ -8,7 +8,7 @@ output/
 .pptx-build/
 
 related_work/
-ft_scripts\sparse_ruler_qwen\logs\
+ft_scripts/sparse_ruler_qwen/logs/
 
 eval/HunyuanVideo
 eval/VLMEvalKit

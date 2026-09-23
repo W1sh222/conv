@@ -101,7 +101,7 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
         SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
     fi
 
-    RESULTS_DIR="${ROOT_DIR}/${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
+    RESULTS_DIR="${ROOT_DIR}/${RULER_RUN_TAG:+${RULER_RUN_TAG}_}${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
     DATA_DIR="${RULER_SHARED_DATA_ROOT:-/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/eval/RULER/scripts/data/ruler}/${BENCHMARK}/${MAX_SEQ_LENGTH}/data"
     PRED_DIR="${RESULTS_DIR}/pred"
     mkdir -p ${DATA_DIR}
