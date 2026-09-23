@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Launch the eight Llama Conv RULER shards concurrently:
+# Launch the eight Llama RULER shards concurrently:
 #   GPU 0: 32k-1, GPU 1: 32k-2,
 #   GPU 2-4: 64k-1..3, GPU 5-7: 128k-1..3.
 #
 # Usage:
-#   bash scripts/run_ruler_conv2_9_parallel.sh --weight PATH --topk 0.7
-#   bash scripts/run_ruler_conv2_9_parallel.sh PATH 0.7
+#   bash scripts/run_ruler_conv2_9_parallel.sh --method conv --weight PATH --topk 0.7
+#   bash scripts/run_ruler_conv2_9_parallel.sh --method flex --topk 0.7
+#   bash scripts/run_ruler_conv2_9_parallel.sh --method minference
+#   bash scripts/run_ruler_conv2_9_parallel.sh PATH 0.7  # shorthand for Conv
 
 usage() {
   cat >&2 <<'EOF'
-Usage: bash scripts/run_ruler_conv2_9_parallel.sh --weight PATH --topk RATIO [options]
+Usage: bash scripts/run_ruler_conv2_9_parallel.sh --method METHOD [options]
    or: bash scripts/run_ruler_conv2_9_parallel.sh PATH RATIO [options]
 
 Options:
-  --weight PATH     Llama Conv .pt checkpoint (or initial_vertical_diag)
-  --topk RATIO      block top-k ratio, for example 0.65 or 0.7
+  --method METHOD   conv, xattn, flex, minference, or full (default: conv)
+  --weight PATH     Llama Conv .pt checkpoint (required for conv)
+  --topk RATIO      block top-k ratio for conv/xattn/flex
   --samples N       samples per task (default: 100)
   --stride N        block stride (default: 8)
   --log-dir PATH    per-GPU log directory
@@ -27,18 +30,44 @@ EOF
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WEIGHT_PATH=""
 TOPK=""
+METHOD="conv"
 SAMPLES="${RULER_NUM_SAMPLES:-100}"
 STRIDE="${STRIDE:-8}"
 LOG_DIR="${LOG_DIR:-${REPO_ROOT}/eval/RULER/scripts/parallel_logs/llama_conv2_9}"
 
-if [[ $# -ge 2 && "$1" != -* ]]; then
-  WEIGHT_PATH="$1"
-  TOPK="$2"
-  shift 2
+if [[ $# -gt 0 && "$1" != -* ]]; then
+  case "$1" in
+    conv|xattn|flex|minference|full)
+      METHOD="$1"
+      shift
+      if [[ "$METHOD" == "conv" && $# -ge 2 && "$1" != -* ]]; then
+        WEIGHT_PATH="$1"
+        TOPK="$2"
+        shift 2
+      elif [[ "$METHOD" != "minference" && "$METHOD" != "full" && $# -ge 1 && "$1" != -* ]]; then
+        TOPK="$1"
+        shift
+      fi
+      ;;
+    *)
+      if [[ $# -ge 2 ]]; then
+        WEIGHT_PATH="$1"
+        TOPK="$2"
+        shift 2
+      else
+        usage
+      fi
+      ;;
+  esac
 fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --method)
+      [[ $# -ge 2 ]] || usage
+      METHOD="$2"
+      shift 2
+      ;;
     --weight|--weight_path|--conv_weight_path)
       [[ $# -ge 2 ]] || usage
       WEIGHT_PATH="$2"
@@ -74,19 +103,35 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -n "${WEIGHT_PATH}" && -n "${TOPK}" ]] || usage
-[[ "${TOPK}" =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || {
-  echo "topk ratio must be in [0,1], got: ${TOPK}" >&2
-  exit 2
-}
-if [[ "${WEIGHT_PATH}" != "initial_vertical_diag" && ! -f "${WEIGHT_PATH}" ]]; then
+case "${METHOD}" in
+  conv|xattn|flex|minference|full) ;;
+  *) echo "unsupported method: ${METHOD}" >&2; usage ;;
+esac
+
+if [[ "${METHOD}" == "conv" && -z "${WEIGHT_PATH}" ]]; then
+  echo "--weight is required for method=conv" >&2
+  usage
+fi
+if [[ "${METHOD}" == "conv" || "${METHOD}" == "xattn" || "${METHOD}" == "flex" ]]; then
+  TOPK="${TOPK:-0.65}"
+  [[ "${TOPK}" =~ ^(0\.[0-9]*[1-9][0-9]*|1(\.0*)?)$ ]] || {
+    echo "topk ratio must be in [0,1], got: ${TOPK}" >&2
+    exit 2
+  }
+fi
+if [[ "${METHOD}" == "conv" && "${WEIGHT_PATH}" != "initial_vertical_diag" && ! -f "${WEIGHT_PATH}" ]]; then
   echo "Llama Conv weight does not exist: ${WEIGHT_PATH}" >&2
   exit 1
 fi
 
-WEIGHT_TAG="$(basename -- "${WEIGHT_PATH}")"
-WEIGHT_TAG="${WEIGHT_TAG%.pt}"
-[[ -n "${WEIGHT_TAG}" ]] || WEIGHT_TAG="initial_vertical_diag"
+if [[ -n "${RULER_RUN_TAG:-}" ]]; then
+  WEIGHT_TAG="${RULER_RUN_TAG}"
+elif [[ "${METHOD}" == "conv" ]]; then
+  WEIGHT_TAG="$(basename -- "${WEIGHT_PATH}")"
+  WEIGHT_TAG="${WEIGHT_TAG%.pt}"
+else
+  WEIGHT_TAG="${METHOD}"
+fi
 mkdir -p "${LOG_DIR}"
 
 RUNNERS=(
@@ -98,8 +143,9 @@ GPUS=(0 1 2 3 4 5 6 7)
 PIDS=()
 
 echo "[parallel] model=llama3.1-8b-chat"
-echo "[parallel] weight=${WEIGHT_PATH}"
-echo "[parallel] topk=${TOPK} stride=${STRIDE} samples=${SAMPLES}"
+echo "[parallel] method=${METHOD}"
+echo "[parallel] weight=${WEIGHT_PATH:-<not-used>}"
+echo "[parallel] topk=${TOPK:-<not-used>} stride=${STRIDE} samples=${SAMPLES}"
 echo "[parallel] output tag=${WEIGHT_TAG}"
 
 for i in "${!RUNNERS[@]}"; do
@@ -112,11 +158,18 @@ for i in "${!RUNNERS[@]}"; do
     export RULER_RUN_TAG="${WEIGHT_TAG}"
     export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
     cd "${REPO_ROOT}/eval/RULER/scripts"
+    RUN_ARGS=(
+      --stride "${STRIDE}"
+      --metric "${METHOD}"
+    )
+    if [[ "${METHOD}" != "minference" && "${METHOD}" != "full" ]]; then
+      RUN_ARGS+=(--block_topk_ratio "${TOPK}")
+    fi
+    if [[ "${METHOD}" == "conv" ]]; then
+      RUN_ARGS+=(--conv_weight_path "${WEIGHT_PATH}")
+    fi
     exec bash "./${runner}" llama3.1-8b-chat synthetic \
-      --stride "${STRIDE}" \
-      --metric conv \
-      --block_topk_ratio "${TOPK}" \
-      --conv_weight_path "${WEIGHT_PATH}"
+      "${RUN_ARGS[@]}"
   ) >"${log_file}" 2>&1 &
   pid=$!
   PIDS+=("${pid}")
@@ -134,4 +187,3 @@ for i in "${!PIDS[@]}"; do
 done
 
 exit "${FAILED}"
-

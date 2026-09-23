@@ -46,3 +46,26 @@ def load_model(
         expected_heads=QWEN3_NUM_ATTENTION_HEADS,
         expected_kv_heads=QWEN3_NUM_KEY_VALUE_HEADS,
     )
+
+
+def load_fake_model(
+    layer_to_save: int,
+    target_len: int,
+    name_or_path: str = "",
+    output_dir: str = "output",
+):
+    """Load Qwen3 for the efficiency benchmark and capture one layer's Q/K.
+
+    The benchmark uses the same capture protocol for Llama and Qwen3.  This
+    compatibility helper intentionally loads the dense/full path while the
+    model is used only to build the cached query/key tensors; the subsequent
+    timing section benchmarks each selected prefill implementation directly.
+    """
+    model, tokenizer = load_model(
+        FastPrefillConfig(metric="full"), name_or_path=name_or_path
+    )
+    for layer in model.model.layers:
+        layer.self_attn.layer_to_save = int(layer_to_save)
+        layer.self_attn.target_len = int(target_len)
+        layer.self_attn.capture_output_dir = str(output_dir)
+    return model, tokenizer
