@@ -38,6 +38,7 @@ import inspect
 from pathlib import Path
 
 import torch
+import torch.nn.functional as F
 from tqdm import tqdm
 from transformers import StaticCache
 
@@ -98,6 +99,17 @@ def parse_args():
         default=int(os.environ.get("EFFICIENCY_WARMUPS", "30")),
     )
     parser.add_argument("--cache-dir", default=None)
+    parser.add_argument(
+        "--full-backend",
+        choices=("torch", "torch_math", "flashinfer"),
+        default=os.environ.get("EFFICIENCY_FULL_BACKEND", "torch"),
+        help=(
+            "Dense baseline: 'torch' uses PyTorch scaled_dot_product_attention "
+            "without FlashInfer (default); 'torch_math' forces the eager math "
+            "backend and can OOM at long lengths; 'flashinfer' restores the "
+            "previous FlashInfer baseline."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -159,6 +171,46 @@ def make_static_cache(config, batch_size, max_cache_len, device, dtype):
     return StaticCache(**kwargs)
 
 
+def torch_full_prefill(query_states, key_states, value_states, causal=True, math_only=False):
+    """Dense PyTorch baseline, matching the model's original attention path."""
+    if not math_only:
+        return F.scaled_dot_product_attention(
+            query_states,
+            key_states,
+            value_states,
+            dropout_p=0.0,
+            is_causal=causal,
+        )
+
+    # The explicit math backend is closest to the old eager implementation.
+    # It materializes the dense attention computation and is therefore not
+    # suitable for very long sequences on most GPUs.
+    try:
+        from torch.nn.attention import SDPBackend, sdpa_kernel
+
+        with sdpa_kernel(SDPBackend.MATH):
+            return F.scaled_dot_product_attention(
+                query_states,
+                key_states,
+                value_states,
+                dropout_p=0.0,
+                is_causal=causal,
+            )
+    except (ImportError, AttributeError):
+        with torch.backends.cuda.sdp_kernel(
+            enable_flash=False,
+            enable_mem_efficient=False,
+            enable_math=True,
+        ):
+            return F.scaled_dot_product_attention(
+                query_states,
+                key_states,
+                value_states,
+                dropout_p=0.0,
+                is_causal=causal,
+            )
+
+
 if __name__ == "__main__":
     args = parse_args()
     if args.model_kind == "llama":
@@ -204,8 +256,24 @@ if __name__ == "__main__":
     print(
         f"[Efficiency] transformers=4.51.0 model_kind={args.model_kind} "
         f"model={model_path} conv_weight={CONV_WEIGHT_PATH} "
-        f"lengths={lens}K layer={args.layer} topk_ratio={TOPK_RATIO}"
+        f"lengths={lens}K layer={args.layer} topk_ratio={TOPK_RATIO} "
+        f"full_backend={args.full_backend}"
     )
+
+    if args.full_backend == "torch":
+        full_prefill = lambda q_, k_, v_: torch_full_prefill(
+            q_, k_, v_, causal=True, math_only=False
+        )
+    elif args.full_backend == "torch_math":
+        full_prefill = lambda q_, k_, v_: torch_full_prefill(
+            q_, k_, v_, causal=True, math_only=True
+        )
+    else:
+        if not FULL_PREFILL:
+            raise RuntimeError(
+                "--full-backend flashinfer requested, but FlashInfer is unavailable."
+            )
+        full_prefill = lambda q_, k_, v_: Full_prefill(q_, k_, v_, causal=True)
 
     speedups_flex = []
     speedups_xattn_8 = []
@@ -376,9 +444,15 @@ if __name__ == "__main__":
                     print(f"[WARN] Conv_prefill warmup failed: {repr(e)}")
                     CONV_PREFILL = False
 
-            if FULL_PREFILL:
+            if args.full_backend in ("torch", "torch_math"):
                 try:
-                    Full_prefill(q, k, v, causal=True)
+                    full_prefill(q, k, v)
+                except Exception as e:
+                    print(f"[WARN] PyTorch dense full warmup failed: {repr(e)}")
+                    raise
+            elif FULL_PREFILL:
+                try:
+                    full_prefill(q, k, v)
                 except Exception as e:
                     print(f"[WARN] Full_prefill warmup failed: {repr(e)}")
                     FULL_PREFILL = False
@@ -580,9 +654,9 @@ if __name__ == "__main__":
         else:
             avg_time_minfer = float("nan")
 
-        if FULL_PREFILL:
+        if args.full_backend in ("torch", "torch_math") or FULL_PREFILL:
             avg_time_flashinfer = benchmark_cuda(
-                lambda: Full_prefill(q, k, v, causal=True),
+                lambda: full_prefill(q, k, v),
                 num_iterations=num_iterations,
             )
         else:

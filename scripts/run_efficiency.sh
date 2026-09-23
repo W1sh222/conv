@@ -5,6 +5,8 @@ set -euo pipefail
 #   bash scripts/run_efficiency.sh llama [attention_speedup.py args]
 #   bash scripts/run_efficiency.sh qwen3 [attention_speedup.py args]
 #   bash scripts/run_efficiency.sh both [attention_speedup.py args]
+# Dense baseline defaults to PyTorch SDPA (not FlashInfer). To restore the
+# old FlashInfer baseline, append: --full-backend flashinfer
 MODEL_KIND="${1:-llama}"
 if [[ $# -gt 0 ]]; then shift; fi
 
