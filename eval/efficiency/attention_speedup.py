@@ -34,6 +34,7 @@ import pickle
 import time
 import argparse
 import gc
+import inspect
 from pathlib import Path
 
 import torch
@@ -131,6 +132,33 @@ def run_density_once(fn):
     return float("nan")
 
 
+def make_static_cache(config, batch_size, max_cache_len, device, dtype):
+    """Construct a StaticCache across the Transformers 4.46/4.51 APIs.
+
+    Transformers 4.51 renamed ``batch_size`` to ``max_batch_size``.  Keeping
+    this small compatibility shim here also makes the efficiency benchmark
+    usable with an older environment without silently passing an unsupported
+    keyword to the cache constructor.
+    """
+    parameters = inspect.signature(StaticCache.__init__).parameters
+    kwargs = {
+        "config": config,
+        "max_cache_len": max_cache_len,
+        "device": device,
+        "dtype": dtype,
+    }
+    if "max_batch_size" in parameters:
+        kwargs["max_batch_size"] = batch_size
+    elif "batch_size" in parameters:
+        kwargs["batch_size"] = batch_size
+    else:
+        raise TypeError(
+            "Unsupported Transformers StaticCache API: expected either "
+            "'max_batch_size' or 'batch_size'"
+        )
+    return StaticCache(**kwargs)
+
+
 if __name__ == "__main__":
     args = parse_args()
     if args.model_kind == "llama":
@@ -213,7 +241,7 @@ if __name__ == "__main__":
             input_ids = generate_prompt(tokenizer, seq_len)
             chunk_size = 4096
 
-            past_key_values = StaticCache(
+            past_key_values = make_static_cache(
                 config=model.config,
                 batch_size=1,
                 max_cache_len=seq_len,
