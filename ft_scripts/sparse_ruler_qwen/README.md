@@ -16,3 +16,11 @@ and mixed-length checkpoints. The matching evaluation entry point is
 Use `../../scripts/run_longbench_qwen3_balanced.sh` for the matching LongBench
 checkpoint; it keeps native RoPE by default and exposes an opt-in YaRN mode for
 datasets whose prompts actually exceed the native context.
+
+For the current LongBench-focused continuation, use
+`../run_ruler_mix_sparse_guarded_qwen_stage4.sh`.  It always requires the
+Stage-3 EMA ending in `step9250.pt`, writes a new
+`conv_qwen3_t065_longbench_stage4_v2` directory, and leaves the Stage-3 RULER
+checkpoint and the old `compensate_stage4_v1` branch untouched.  The companion
+`../run_ruler_mix_sparse_guarded_qwen_combined.sh` first makes/validates Stage 3
+and then invokes this isolated Stage-4 branch.

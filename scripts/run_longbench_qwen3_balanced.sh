@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# LongBench companion for the balanced Qwen3 checkpoint. Native RoPE is the
-# default because most LongBench prompts are short enough that static YaRN can
-# reduce base-model quality. Set QWEN_LONG_ROPE_MODE=yarn for >40K-only runs.
+# LongBench companion for the Qwen3 LongBench Stage-4 v2 checkpoint. Native
+# RoPE is the default because most LongBench prompts are short enough that
+# static YaRN can reduce base-model quality. Set QWEN_LONG_ROPE_MODE=yarn for
+# >40K-only runs, or pass --conv_weight_path explicitly.
 METHOD="${1:-conv}"
 if [[ $# -gt 0 ]]; then shift; fi
 case "${METHOD}" in
@@ -13,7 +14,7 @@ esac
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 XATTN_ROOT="/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn"
-DEFAULT_NATIVE_WEIGHT="${XATTN_ROOT}/qwen_weights/conv_qwen3_t065_64k128k_balanced_v3/conv_kernel_7x7_qwen3_t065_longbench_native_8k64k_s8_bf16_ema.pt"
+DEFAULT_NATIVE_WEIGHT="${XATTN_ROOT}/qwen_weights/conv_qwen3_t065_longbench_stage4_v2/conv_kernel_7x7_qwen3_t065_longbench_replay_native_8k64k_s8_bf16_ema.pt"
 DEFAULT_YARN_WEIGHT="${XATTN_ROOT}/qwen_weights/conv_qwen3_t065_64k128k_balanced_v3/conv_kernel_7x7_qwen3_t065_balanced_32k128k_s8_yarn4_bf16_ema.pt"
 ROPE_MODE="${QWEN_LONG_ROPE_MODE:-native}"
 

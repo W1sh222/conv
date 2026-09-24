@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Qwen3-8B corrective Stage 4.
+# Qwen3-8B LongBench-focused Stage 4 (v2).
 #
 # This is intentionally a separate continuation entry point.  Stages 1-3 of
 # conv_qwen3_t065_64k128k_balanced_v3 are left untouched; the input is the
-# last requested Stage-3 EMA (step 9250), and this stage performs a cautious
-# native-RoPE 8K-64K correction for LongBench/short-context regressions.
+# last requested Stage-3 EMA (step 9250).  This branch is deliberately
+# LongBench-focused: it is a separate native-RoPE 8K-64K checkpoint and must
+# not replace the YaRN 96K-128K RULER checkpoint.
 # All score maps remain inference-matched: block_size=128 and score_stride=8.
 
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
@@ -24,30 +25,31 @@ XATTN_ROOT="/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_worksh
 
 # Keep the original Stage-3 result as the immutable starting point.
 STAGE3_INIT="${STAGE3_INIT:-${XATTN_ROOT}/qwen_weights/conv_qwen3_t065_64k128k_balanced_v3/stage3_extend_96k128k_t065_s8_yarn4_bf16_ema_step9250.pt}"
-RUN_NAME="${RUN_NAME:-conv_qwen3_t065_64k128k_compensate_stage4_v1}"
+RUN_NAME="${RUN_NAME:-conv_qwen3_t065_longbench_stage4_v2}"
 WEIGHT_DIR="${XATTN_ROOT}/qwen_weights/${RUN_NAME}"
 DATA_DIR="${NOLIMA_ROOT}/synth_train/${RUN_NAME}"
 LOG_DIR="${WEIGHT_DIR}/logs"
 
 MODEL_PRECISION="${MODEL_PRECISION:-bf16}"
-DATA_SAMPLES="${DATA_SAMPLES:-8000}"
-TRAIN_STEPS="${TRAIN_STEPS:-8000}"
-LR="${LR:-7e-7}"
-WARMUP_STEPS="${WARMUP_STEPS:-300}"
-LAYERS_PER_SAMPLE="${LAYERS_PER_SAMPLE:-2}"
+DATA_SAMPLES="${DATA_SAMPLES:-12000}"
+TRAIN_STEPS="${TRAIN_STEPS:-5000}"
+LR="${LR:-1.5e-7}"
+WARMUP_STEPS="${WARMUP_STEPS:-400}"
+LAYERS_PER_SAMPLE="${LAYERS_PER_SAMPLE:-1}"
 SAVE_STEPS="${SAVE_STEPS:-250}"
 AUTO_RESUME="${AUTO_RESUME:-1}"
 
-DATA_PATH="${DATA_DIR}/stage4_compensate_native_8k64k_${DATA_SAMPLES}.jsonl"
-OUT_PATH="${WEIGHT_DIR}/conv_kernel_7x7_qwen3_t065_compensate_native_8k64k_s8_${MODEL_PRECISION}.pt"
+DATA_PATH="${DATA_DIR}/stage4_longbench_replay_native_8k64k_${DATA_SAMPLES}.jsonl"
+OUT_PATH="${WEIGHT_DIR}/conv_kernel_7x7_qwen3_t065_longbench_replay_native_8k64k_s8_${MODEL_PRECISION}.pt"
 STATE_PATH="${OUT_PATH%.pt}_train_state.pt"
 EMA_PATH="${OUT_PATH%.pt}_ema.pt"
-LOG_FILE="${LOG_DIR}/train_qwen3_t065_compensate_stage4_${MODEL_PRECISION}.log"
+LOG_FILE="${LOG_DIR}/train_qwen3_t065_longbench_stage4_v2_${MODEL_PRECISION}.log"
 
-# More QA/dense data repairs the LongBench regression while retaining enough
-# multikey/multivalue data to avoid throwing away the RULER behavior learned in
-# the Stage-3 anchor.
-TASK_MIX="niah_single_1:0.005,niah_single_2:0.005,niah_single_3:0.005,niah_multikey_1:0.15,niah_multivalue:0.10,niah_multiquery:0.10,vt:0.04,cwe:0.05,fwe:0.03,qa_1:0.15,qa_2:0.15,dense_general:0.215"
+# Synthetic RULER-Mix is still the only local training-data interface, so use
+# its QA/dense tasks as the LongBench surrogate and retain 25% multikey replay.
+# The replay is important: otherwise a native short-context pass destroys the
+# ranking learned by the 9250 anchor.  The weights sum to 1.0.
+TASK_MIX="niah_single_1:0.005,niah_single_2:0.005,niah_single_3:0.005,niah_multikey_1:0.10,niah_multikey_2:0.10,niah_multikey_3:0.05,niah_multivalue:0.10,niah_multiquery:0.10,vt:0.04,cwe:0.04,fwe:0.03,qa_1:0.18,qa_2:0.15,dense_general:0.095"
 
 # Command-line arguments intentionally come after the script name, so a run
 # can be reproduced without relying on shell environment assignments.  The
@@ -140,11 +142,11 @@ done
 WEIGHT_DIR="${XATTN_ROOT}/qwen_weights/${RUN_NAME}"
 DATA_DIR="${NOLIMA_ROOT}/synth_train/${RUN_NAME}"
 LOG_DIR="${WEIGHT_DIR}/logs"
-DATA_PATH="${EXPLICIT_DATA_PATH:-${DATA_DIR}/stage4_compensate_native_8k64k_${DATA_SAMPLES}.jsonl}"
-OUT_PATH="${EXPLICIT_OUT_PATH:-${WEIGHT_DIR}/conv_kernel_7x7_qwen3_t065_compensate_native_8k64k_s8_${MODEL_PRECISION}.pt}"
+DATA_PATH="${EXPLICIT_DATA_PATH:-${DATA_DIR}/stage4_longbench_replay_native_8k64k_${DATA_SAMPLES}.jsonl}"
+OUT_PATH="${EXPLICIT_OUT_PATH:-${WEIGHT_DIR}/conv_kernel_7x7_qwen3_t065_longbench_replay_native_8k64k_s8_${MODEL_PRECISION}.pt}"
 STATE_PATH="${OUT_PATH%.pt}_train_state.pt"
 EMA_PATH="${OUT_PATH%.pt}_ema.pt"
-LOG_FILE="${LOG_DIR}/train_qwen3_t065_compensate_stage4_${MODEL_PRECISION}.log"
+LOG_FILE="${LOG_DIR}/train_qwen3_t065_longbench_stage4_v2_${MODEL_PRECISION}.log"
 
 mkdir -p "${WEIGHT_DIR}" "${DATA_DIR}" "${LOG_DIR}"
 exec > >(tee -a "${LOG_FILE}") 2>&1
@@ -169,6 +171,13 @@ echo "AUTO_RESUME=${AUTO_RESUME}"
 test -d "${MODEL_PATH}" || { echo "model directory does not exist: ${MODEL_PATH}"; exit 1; }
 test -d "${NOLIMA_ROOT}" || { echo "NoLiMa directory does not exist: ${NOLIMA_ROOT}"; exit 1; }
 test -f "${STAGE3_INIT}" || { echo "Stage-3 anchor does not exist: ${STAGE3_INIT}"; exit 1; }
+case "$(basename "${STAGE3_INIT}")" in
+  *_step9250.pt) ;;
+  *)
+    echo "Stage4 v2 must start from the Stage-3 EMA at step 9250; got: ${STAGE3_INIT}" >&2
+    exit 1
+    ;;
+esac
 
 CURRENT_SAMPLES=0
 if [[ -f "${DATA_PATH}" ]]; then
@@ -233,8 +242,8 @@ python ft_scripts/sparse_ruler_qwen/train_conv_kernel_guarded_long.py \
   --lr "${LR}" \
   --lr_schedule cosine \
   --warmup_steps "${WARMUP_STEPS}" \
-  --min_lr_ratio 0.10 \
-  --seed 651604 \
+  --min_lr_ratio 0.25 \
+  --seed 651704 \
   --rope_scaling_type none \
   --rope_factor 4.0 \
   --rope_original_max_position_embeddings 32768 \
@@ -252,27 +261,29 @@ python ft_scripts/sparse_ruler_qwen/train_conv_kernel_guarded_long.py \
   --teacher_head_chunk 1 \
   --teacher_key_chunk 512 \
   --positive_temperature 0.02 \
-  --teacher_kl_weight 0.50 \
-  --teacher_l1_weight 0.08 \
-  --topk_recall_loss_weight 1.00 \
+  --teacher_kl_weight 0.70 \
+  --teacher_l1_weight 0.10 \
+  --topk_recall_loss_weight 0.30 \
   --topk_train_ratio 0.65 \
-  --topk_positive_mass 0.99 \
-  --topk_boundary_negatives 32 \
-  --topk_boundary_margin 0.03 \
-  --target_loss_weight 0.65 \
-  --aggregation_loss_weight 0.18 \
-  --aggregation_cover_mass 0.45 \
-  --target_margin 0.10 \
-  --target_joint_weight 0.80 \
-  --target_query_tail_blocks 32 \
-  --negative_weight 0.02 \
+  --topk_positive_mass 0.95 \
+  --topk_boundary_negatives 16 \
+  --topk_boundary_margin 0.015 \
+  --target_loss_weight 0.35 \
+  --aggregation_loss_weight 0.10 \
+  --aggregation_cover_mass 0.32 \
+  --target_margin 0.08 \
+  --target_joint_weight 0.60 \
+  --target_query_tail_blocks 24 \
+  --negative_weight 0.01 \
   --compression_loss_weight 0.0 \
   --compression_loss_weight_final 0.0 \
   --budget_loss_weight 0.0 \
   --target_blocks_schedule "0:512" \
-  --bounded_delta_alpha 0.04 \
-  --ema_decay 0.999 \
-  --max_grad_norm 0.05 \
+  --bounded_delta_alpha 0.02 \
+  --weight_min -1.0 \
+  --weight_max 2.0 \
+  --ema_decay 0.9995 \
+  --max_grad_norm 0.02 \
   --log_steps 10 \
   --save_steps "${SAVE_STEPS}"
 
