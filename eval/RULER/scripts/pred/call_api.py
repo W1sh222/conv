@@ -133,6 +133,18 @@ parser.add_argument("--no_conv_use_triton", dest="conv_use_triton", action="stor
                     help="Disable Conv triton estimation path.")
 parser.add_argument("--conv_fallback_topk", type=int, default=8)
 parser.add_argument(
+    "--minference_vertical_size",
+    type=int,
+    default=int(os.environ.get("MINFERENCE_VERTICAL_SIZE", "1000")),
+    help="MInference-VS vertical budget; ignored by other metrics.",
+)
+parser.add_argument(
+    "--minference_slash_size",
+    type=int,
+    default=int(os.environ.get("MINFERENCE_SLASH_SIZE", "6096")),
+    help="MInference-VS slash/diagonal budget; ignored by other metrics.",
+)
+parser.add_argument(
     "--rope_scaling_type",
     choices=("none", "yarn"),
     default=os.environ.get("ROPE_SCALING_TYPE", "none"),
@@ -208,6 +220,8 @@ fastprefillconfig = FastPrefillConfig(
     conv_use_triton=args.conv_use_triton,
     conv_fallback_topk=args.conv_fallback_topk,
     block_topk_ratio=args.block_topk_ratio,
+    minference_vertical_size=args.minference_vertical_size,
+    minference_slash_size=args.minference_slash_size,
     report_density=True,
     rope_scaling_type=args.rope_scaling_type,
     rope_factor=args.rope_factor,

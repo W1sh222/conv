@@ -50,6 +50,8 @@ class BaseFastPrefillConfig(dict):
         conv_use_triton: bool = True,
         conv_fallback_topk: int = 8,
         block_topk_ratio: Optional[float] = None,
+        minference_vertical_size: int = 1000,
+        minference_slash_size: int = 6096,
         report_density: bool = False,
         print_density_per_layer: bool = False,
         rope_scaling_type: str = "none",
@@ -66,6 +68,10 @@ class BaseFastPrefillConfig(dict):
             )
         if int(stride) <= 0:
             raise ValueError("stride must be positive")
+        if int(minference_vertical_size) <= 0:
+            raise ValueError("minference_vertical_size must be positive")
+        if int(minference_slash_size) <= 0:
+            raise ValueError("minference_slash_size must be positive")
         if block_topk_ratio is not None:
             block_topk_ratio = float(block_topk_ratio)
             if not 0.0 < block_topk_ratio <= 1.0:
@@ -97,6 +103,8 @@ class BaseFastPrefillConfig(dict):
         self.conv_use_triton = bool(conv_use_triton)
         self.conv_fallback_topk = int(conv_fallback_topk)
         self.block_topk_ratio = block_topk_ratio
+        self.minference_vertical_size = int(minference_vertical_size)
+        self.minference_slash_size = int(minference_slash_size)
         self.report_density = bool(report_density)
         self.print_density_per_layer = bool(print_density_per_layer)
         self.rope_scaling_type = rope_scaling_type
@@ -289,7 +297,13 @@ def _run_prefill(self, query_states, key_states, value_states, attention_mask):
     elif method == "minference":
         from xattn.src.Minference import Minference_prefill
 
-        return Minference_prefill(query_states, key_states, value_states)
+        return Minference_prefill(
+            query_states,
+            key_states,
+            value_states,
+            vertical_size=config.minference_vertical_size,
+            slash_size=config.minference_slash_size,
+        )
     elif method == "full":
         return _dense_attention(query_states, key_states, value_states, attention_mask)
     else:

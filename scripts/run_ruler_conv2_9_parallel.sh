@@ -20,6 +20,8 @@ Options:
   --method METHOD   conv, xattn, flex, minference, or full (default: conv)
   --weight PATH     Llama Conv .pt checkpoint (required for conv)
   --topk RATIO      block top-k ratio for conv/xattn/flex
+  --minference-vertical N  MInference vertical budget (default: 1000)
+  --minference-slash N     MInference slash budget (default: 6096)
   --samples N       samples per task (default: 100)
   --stride N        block stride (default: 8)
   --log-dir PATH    per-GPU log directory
@@ -31,6 +33,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WEIGHT_PATH=""
 TOPK=""
 METHOD="conv"
+MINFERENCE_VERTICAL_SIZE="${MINFERENCE_VERTICAL_SIZE:-1000}"
+MINFERENCE_SLASH_SIZE="${MINFERENCE_SLASH_SIZE:-6096}"
 SAMPLES="${RULER_NUM_SAMPLES:-100}"
 STRIDE="${STRIDE:-8}"
 LOG_DIR="${LOG_DIR:-${REPO_ROOT}/eval/RULER/scripts/parallel_logs/llama_conv2_9}"
@@ -78,6 +82,16 @@ while [[ $# -gt 0 ]]; do
       TOPK="$2"
       shift 2
       ;;
+    --minference-vertical|--minference_vertical_size)
+      [[ $# -ge 2 ]] || usage
+      MINFERENCE_VERTICAL_SIZE="$2"
+      shift 2
+      ;;
+    --minference-slash|--minference_slash_size)
+      [[ $# -ge 2 ]] || usage
+      MINFERENCE_SLASH_SIZE="$2"
+      shift 2
+      ;;
     --samples)
       [[ $# -ge 2 ]] || usage
       SAMPLES="$2"
@@ -123,6 +137,14 @@ if [[ "${METHOD}" == "conv" && "${WEIGHT_PATH}" != "initial_vertical_diag" && ! 
   echo "Llama Conv weight does not exist: ${WEIGHT_PATH}" >&2
   exit 1
 fi
+[[ "${MINFERENCE_VERTICAL_SIZE}" =~ ^[1-9][0-9]*$ ]] || {
+  echo "MInference vertical budget must be a positive integer" >&2
+  exit 2
+}
+[[ "${MINFERENCE_SLASH_SIZE}" =~ ^[1-9][0-9]*$ ]] || {
+  echo "MInference slash budget must be a positive integer" >&2
+  exit 2
+}
 
 if [[ -n "${RULER_RUN_TAG:-}" ]]; then
   WEIGHT_TAG="${RULER_RUN_TAG}"
@@ -146,6 +168,7 @@ echo "[parallel] model=llama3.1-8b-chat"
 echo "[parallel] method=${METHOD}"
 echo "[parallel] weight=${WEIGHT_PATH:-<not-used>}"
 echo "[parallel] topk=${TOPK:-<not-used>} stride=${STRIDE} samples=${SAMPLES}"
+echo "[parallel] minference_vertical=${MINFERENCE_VERTICAL_SIZE} minference_slash=${MINFERENCE_SLASH_SIZE}"
 echo "[parallel] output tag=${WEIGHT_TAG}"
 
 for i in "${!RUNNERS[@]}"; do
@@ -156,6 +179,8 @@ for i in "${!RUNNERS[@]}"; do
     export CUDA_VISIBLE_DEVICES="${gpu}"
     export RULER_NUM_SAMPLES="${SAMPLES}"
     export RULER_RUN_TAG="${WEIGHT_TAG}"
+    export MINFERENCE_VERTICAL_SIZE="${MINFERENCE_VERTICAL_SIZE}"
+    export MINFERENCE_SLASH_SIZE="${MINFERENCE_SLASH_SIZE}"
     export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
     cd "${REPO_ROOT}/eval/RULER/scripts"
     RUN_ARGS=(

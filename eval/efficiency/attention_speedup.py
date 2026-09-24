@@ -100,6 +100,16 @@ def parse_args():
     )
     parser.add_argument("--cache-dir", default=None)
     parser.add_argument(
+        "--minference-vertical-size",
+        type=int,
+        default=int(os.environ.get("MINFERENCE_VERTICAL_SIZE", "1000")),
+    )
+    parser.add_argument(
+        "--minference-slash-size",
+        type=int,
+        default=int(os.environ.get("MINFERENCE_SLASH_SIZE", "6096")),
+    )
+    parser.add_argument(
         "--full-backend",
         choices=("torch", "torch_math", "flashinfer"),
         default=os.environ.get("EFFICIENCY_FULL_BACKEND", "torch"),
@@ -252,12 +262,16 @@ if __name__ == "__main__":
         raise ValueError("--lengths must contain positive comma-separated K values")
     if args.iterations <= 0 or args.warmups < 0:
         raise ValueError("--iterations must be positive and --warmups non-negative")
+    if args.minference_vertical_size <= 0 or args.minference_slash_size <= 0:
+        raise ValueError("MInference vertical/slash sizes must be positive")
 
     print(
         f"[Efficiency] transformers=4.51.0 model_kind={args.model_kind} "
         f"model={model_path} conv_weight={CONV_WEIGHT_PATH} "
         f"lengths={lens}K layer={args.layer} topk_ratio={TOPK_RATIO} "
-        f"full_backend={args.full_backend}"
+        f"full_backend={args.full_backend} "
+        f"minference_vertical={args.minference_vertical_size} "
+        f"minference_slash={args.minference_slash_size}"
     )
 
     if args.full_backend == "torch":
@@ -473,7 +487,13 @@ if __name__ == "__main__":
 
             if MINFERENCE_PREFILL:
                 try:
-                    Minference_prefill(q, k, v)
+                    Minference_prefill(
+                        q,
+                        k,
+                        v,
+                        vertical_size=args.minference_vertical_size,
+                        slash_size=args.minference_slash_size,
+                    )
                 except Exception as e:
                     print(f"[WARN] Minference_prefill warmup failed: {repr(e)}")
                     MINFERENCE_PREFILL = False
@@ -648,6 +668,8 @@ if __name__ == "__main__":
                     q,
                     k,
                     v,
+                    vertical_size=args.minference_vertical_size,
+                    slash_size=args.minference_slash_size,
                 ),
                 num_iterations=num_iterations,
             )

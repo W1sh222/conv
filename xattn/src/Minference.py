@@ -79,13 +79,14 @@ def Minference_prefill(
     query_states: torch.Tensor,
     key_states: torch.Tensor,
     value_states: torch.Tensor,
-    vertical_size: int = 500,
-    slash_size: int = 3048,
+    vertical_size: int = 1000,
+    slash_size: int = 6096,
 ) -> torch.Tensor:
     """
     MInference-VS sparse prefill.
 
-    This implementation uses a fixed Vertical-Slash pattern budget:
+    This implementation uses the original MInference-VS style fixed
+    Vertical-Slash pattern budget:
 
         vertical_size = 1000
         slash_size    = 6096

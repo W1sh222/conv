@@ -98,6 +98,18 @@ def parse_args(args=None):
         type=int,
         default=8,
     )
+    parser.add_argument(
+        "--minference_vertical_size",
+        type=int,
+        default=int(os.environ.get("MINFERENCE_VERTICAL_SIZE", "1000")),
+        help="MInference-VS vertical budget; ignored by other methods.",
+    )
+    parser.add_argument(
+        "--minference_slash_size",
+        type=int,
+        default=int(os.environ.get("MINFERENCE_SLASH_SIZE", "6096")),
+        help="MInference-VS slash/diagonal budget; ignored by other methods.",
+    )
 
     parser.add_argument(
         "--rope_scaling_type",
@@ -823,6 +835,8 @@ def load_model_and_tokenizer(path, model_name, runtime_args):
         conv_use_triton=runtime_args.conv_use_triton,
         conv_fallback_topk=runtime_args.conv_fallback_topk,
         report_density=runtime_args.report_density,
+        minference_vertical_size=runtime_args.minference_vertical_size,
+        minference_slash_size=runtime_args.minference_slash_size,
         print_density_per_layer=runtime_args.print_density_per_layer,
         rope_scaling_type=runtime_args.rope_scaling_type,
         rope_factor=runtime_args.rope_factor,
