@@ -375,8 +375,9 @@ if __name__ == "__main__":
         gamma = 0.95
         tau = 0.1
 
-        # Top-K ratio mode ignores threshold. A scalar avoids the removed
-        # legacy, Llama-only threshold table dependency.
+        # Xattention/Conv use the shared top-k ratio below.  Flex is kept on
+        # the original gamma/tau adaptive-budget path; do not pass
+        # topk_ratio here because Flex treats it as a higher-priority mode.
         threshold_8 = 0.9
         threshold_16 = 0.9
 
@@ -479,7 +480,6 @@ if __name__ == "__main__":
                         v.transpose(1, 2),
                         gamma,
                         tau,
-                        topk_ratio=TOPK_RATIO,
                     )
                 except Exception as e:
                     print(f"[WARN] Flexprefill_prefill warmup failed: {repr(e)}")
@@ -510,7 +510,6 @@ if __name__ == "__main__":
                     v.transpose(1, 2),
                     gamma,
                     tau,
-                    topk_ratio=TOPK_RATIO,
                 ),
                 num_iterations=num_iterations,
             )
