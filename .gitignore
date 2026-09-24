@@ -9,6 +9,7 @@ output/
 
 related_work/
 ft_scripts/sparse_ruler_qwen/logs/
+ft_scripts/sparse_ruler/logs/
 
 eval/HunyuanVideo
 eval/VLMEvalKit
@@ -24,6 +25,7 @@ xattn/conv_weights2
 xattn/threshold
 
 eval/RULER/docker/
+eval/RULER/scripts/parallel_logs/
 eval/RULER/scripts/data/ruler/
 eval/RULER/scripts/benchmark_root/
 eval/RULER/scripts/benchmark_root_08/
