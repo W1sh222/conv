@@ -1069,8 +1069,8 @@ def Flexprefill_prefill(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
-    gamma: float = 0.9,
-    tau: float = 0,
+    gamma: float = 0.97,
+    tau: float = 0.03,
     min_budget: int = None,
     max_budget: int = None,
     gqa_interleave: bool = False,
@@ -1114,8 +1114,8 @@ def Flexprefill_prefill(
 if __name__ == "__main__":
     torch.manual_seed(0)
     B, N, H, D = 1, 64000, 32, 64
-    gamma = 0.9
-    tau = 0.1
+    gamma = 0.97
+    tau = 0.03
 
     q = torch.randn(B, N, H, D, device="cuda", dtype=torch.bfloat16)
     k = torch.randn(B, N, H, D, device="cuda", dtype=torch.bfloat16)
@@ -1129,4 +1129,3 @@ if __name__ == "__main__":
     print(f"Attention computation time: {time.time() - start_time:.6f} seconds")
 
     pdb.set_trace()
-    

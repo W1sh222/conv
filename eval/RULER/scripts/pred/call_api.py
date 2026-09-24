@@ -128,14 +128,14 @@ parser.add_argument(
 parser.add_argument(
     "--flex_gamma",
     type=float,
-    default=float(os.environ.get("FLEX_GAMMA", "0.9")),
-    help="Flex attention-mass coverage target (default: 0.9).",
+    default=float(os.environ.get("FLEX_GAMMA", "0.97")),
+    help="Flex attention-mass coverage target (default: 0.97).",
 )
 parser.add_argument(
     "--flex_tau",
     type=float,
-    default=float(os.environ.get("FLEX_TAU", "0.1")),
-    help="Flex JS-divergence threshold (default: 0.1).",
+    default=float(os.environ.get("FLEX_TAU", "0.03")),
+    help="Flex JS-divergence threshold (default: 0.03).",
 )
 parser.add_argument(
     "--flex_min_budget",

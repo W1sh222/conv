@@ -444,8 +444,8 @@ def new_attention_forward(
                 query_states.transpose(1, 2),
                 key_states.transpose(1, 2),
                 value_states.transpose(1, 2),
-                gamma=0.9,
-                tau=0.1,
+                gamma=0.97,
+                tau=0.03,
             ).transpose(1, 2)
         elif self.method == "minference":
             attn_output = Minference_prefill(

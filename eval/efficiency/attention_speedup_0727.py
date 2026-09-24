@@ -181,8 +181,8 @@ if __name__ == "__main__":
         torch.manual_seed(0)
 
         # FlexPrefill args
-        gamma = 0.95
-        tau = 0.1
+        gamma = 0.97
+        tau = 0.03
 
         # XAttention / Conv threshold
         threshold_8 = torch.tensor(

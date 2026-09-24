@@ -52,8 +52,8 @@ class BaseFastPrefillConfig(dict):
         block_topk_ratio: Optional[float] = None,
         # Flex keeps the original vertical/slash gamma/tau controls.  These
         # are independent of the Conv/Xattn fixed top-k ratio.
-        flex_gamma: float = 0.9,
-        flex_tau: float = 0.1,
+        flex_gamma: float = 0.97,
+        flex_tau: float = 0.03,
         flex_min_budget: Optional[int] = None,
         flex_max_budget: Optional[int] = None,
         minference_vertical_size: int = 1000,

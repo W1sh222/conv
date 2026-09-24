@@ -7,7 +7,7 @@ set -euo pipefail
 #
 # Usage:
 #   bash scripts/run_ruler_conv2_9_parallel.sh --method conv --weight PATH --topk 0.7
-#   bash scripts/run_ruler_conv2_9_parallel.sh --method flex --flex-gamma 0.9 --flex-tau 0.1
+#   bash scripts/run_ruler_conv2_9_parallel.sh --method flex --flex-gamma 0.97 --flex-tau 0.03
 #   bash scripts/run_ruler_conv2_9_parallel.sh --method minference
 #   bash scripts/run_ruler_conv2_9_parallel.sh PATH 0.7  # shorthand for Conv
 
@@ -20,8 +20,8 @@ Options:
   --method METHOD   conv, xattn, flex, minference, or full (default: conv)
   --weight PATH     Llama Conv .pt checkpoint (required for conv)
   --topk RATIO      block top-k ratio for conv/xattn (ignored by flex)
-  --flex-gamma X    original Flex attention-mass coverage (default: 0.9)
-  --flex-tau X      original Flex JS-divergence threshold (default: 0.1)
+  --flex-gamma X    original Flex attention-mass coverage (default: 0.97)
+  --flex-tau X      original Flex JS-divergence threshold (default: 0.03)
   --minference-vertical N  MInference vertical budget (default: 1000)
   --minference-slash N     MInference slash budget (default: 6096)
   --samples N       samples per task (default: 100)
@@ -34,8 +34,8 @@ EOF
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WEIGHT_PATH=""
 TOPK=""
-FLEX_GAMMA="${FLEX_GAMMA:-0.9}"
-FLEX_TAU="${FLEX_TAU:-0.1}"
+FLEX_GAMMA="${FLEX_GAMMA:-0.97}"
+FLEX_TAU="${FLEX_TAU:-0.03}"
 METHOD="conv"
 MINFERENCE_VERTICAL_SIZE="${MINFERENCE_VERTICAL_SIZE:-1000}"
 MINFERENCE_SLASH_SIZE="${MINFERENCE_SLASH_SIZE:-6096}"
