@@ -118,8 +118,44 @@ parser.add_argument(
     default=0.65,
     help=(
         "Sparse block/pattern keep ratio for metric in "
-        "{xattn, conv, flex}. MInference keeps its own vertical/slash budget."
+        "{xattn, conv}. Flex uses its original gamma/tau selector."
     ),
+)
+
+# Original Flex vertical/slash selector.  These parameters are deliberately
+# independent of --block_topk_ratio; Flex is not forced to match Conv/Xattn's
+# fixed sparsity.
+parser.add_argument(
+    "--flex_gamma",
+    type=float,
+    default=float(os.environ.get("FLEX_GAMMA", "0.9")),
+    help="Flex attention-mass coverage target (default: 0.9).",
+)
+parser.add_argument(
+    "--flex_tau",
+    type=float,
+    default=float(os.environ.get("FLEX_TAU", "0.1")),
+    help="Flex JS-divergence threshold (default: 0.1).",
+)
+parser.add_argument(
+    "--flex_min_budget",
+    type=int,
+    default=(
+        int(os.environ["FLEX_MIN_BUDGET"])
+        if os.environ.get("FLEX_MIN_BUDGET")
+        else None
+    ),
+    help="Optional original Flex minimum token budget.",
+)
+parser.add_argument(
+    "--flex_max_budget",
+    type=int,
+    default=(
+        int(os.environ["FLEX_MAX_BUDGET"])
+        if os.environ.get("FLEX_MAX_BUDGET")
+        else None
+    ),
+    help="Optional original Flex maximum token budget.",
 )
 
 # Conv options. Defaults are chosen to make Conv comparable with XAttention:
@@ -184,7 +220,7 @@ args.stop_words = list(filter(None, args.stop_words.split(',')))
 if args.server_type == 'hf' or args.server_type == 'gemini':
     args.threads = 1
 
-if args.metric in ("conv", "xattn", "flex"):
+if args.metric in ("conv", "xattn"):
     if not (0.0 < args.block_topk_ratio <= 1.0):
         raise ValueError(
             "--block_topk_ratio must be in (0, 1], "
@@ -193,6 +229,13 @@ if args.metric in ("conv", "xattn", "flex"):
     print(
         f"[Block Selection] method={args.metric} mode=topk_ratio "
         f"ratio={args.block_topk_ratio:.4f}",
+        flush=True,
+    )
+elif args.metric == "flex":
+    print(
+        f"[Block Selection] method=flex mode=original_gamma_tau "
+        f"gamma={args.flex_gamma:.4f} tau={args.flex_tau:.4f} "
+        f"min_budget={args.flex_min_budget} max_budget={args.flex_max_budget}",
         flush=True,
     )
 elif args.metric == "minference":
@@ -220,6 +263,10 @@ fastprefillconfig = FastPrefillConfig(
     conv_use_triton=args.conv_use_triton,
     conv_fallback_topk=args.conv_fallback_topk,
     block_topk_ratio=args.block_topk_ratio,
+    flex_gamma=args.flex_gamma,
+    flex_tau=args.flex_tau,
+    flex_min_budget=args.flex_min_budget,
+    flex_max_budget=args.flex_max_budget,
     minference_vertical_size=args.minference_vertical_size,
     minference_slash_size=args.minference_slash_size,
     report_density=True,

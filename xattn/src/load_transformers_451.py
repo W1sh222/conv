@@ -50,6 +50,12 @@ class BaseFastPrefillConfig(dict):
         conv_use_triton: bool = True,
         conv_fallback_topk: int = 8,
         block_topk_ratio: Optional[float] = None,
+        # Flex keeps the original vertical/slash gamma/tau controls.  These
+        # are independent of the Conv/Xattn fixed top-k ratio.
+        flex_gamma: float = 0.9,
+        flex_tau: float = 0.1,
+        flex_min_budget: Optional[int] = None,
+        flex_max_budget: Optional[int] = None,
         minference_vertical_size: int = 1000,
         minference_slash_size: int = 6096,
         report_density: bool = False,
@@ -76,6 +82,20 @@ class BaseFastPrefillConfig(dict):
             block_topk_ratio = float(block_topk_ratio)
             if not 0.0 < block_topk_ratio <= 1.0:
                 raise ValueError("block_topk_ratio must be in (0, 1]")
+        if not 0.0 < float(flex_gamma) <= 1.0:
+            raise ValueError("flex_gamma must be in (0, 1]")
+        if float(flex_tau) < 0.0:
+            raise ValueError("flex_tau must be non-negative")
+        if flex_min_budget is not None and int(flex_min_budget) <= 0:
+            raise ValueError("flex_min_budget must be positive")
+        if flex_max_budget is not None and int(flex_max_budget) <= 0:
+            raise ValueError("flex_max_budget must be positive")
+        if (
+            flex_min_budget is not None
+            and flex_max_budget is not None
+            and int(flex_min_budget) > int(flex_max_budget)
+        ):
+            raise ValueError("flex_min_budget must not exceed flex_max_budget")
         rope_scaling_type = str(rope_scaling_type).lower()
         if rope_scaling_type not in {"none", "yarn"}:
             raise ValueError("rope_scaling_type must be 'none' or 'yarn'")
@@ -103,6 +123,14 @@ class BaseFastPrefillConfig(dict):
         self.conv_use_triton = bool(conv_use_triton)
         self.conv_fallback_topk = int(conv_fallback_topk)
         self.block_topk_ratio = block_topk_ratio
+        self.flex_gamma = float(flex_gamma)
+        self.flex_tau = float(flex_tau)
+        self.flex_min_budget = (
+            None if flex_min_budget is None else int(flex_min_budget)
+        )
+        self.flex_max_budget = (
+            None if flex_max_budget is None else int(flex_max_budget)
+        )
         self.minference_vertical_size = int(minference_vertical_size)
         self.minference_slash_size = int(minference_slash_size)
         self.report_density = bool(report_density)
@@ -291,7 +319,12 @@ def _run_prefill(self, query_states, key_states, value_states, attention_mask):
             query_states.transpose(1, 2),
             key_states.transpose(1, 2),
             value_states.transpose(1, 2),
-            topk_ratio=config.block_topk_ratio,
+            # Flex uses the original vertical/slash coverage controls.  Do
+            # not pass Conv/Xattn's fixed block_topk_ratio here.
+            gamma=config.flex_gamma,
+            tau=config.flex_tau,
+            min_budget=config.flex_min_budget,
+            max_budget=config.flex_max_budget,
         )
         return output.transpose(1, 2)
     elif method == "minference":

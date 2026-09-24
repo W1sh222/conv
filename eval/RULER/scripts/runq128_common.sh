@@ -52,6 +52,8 @@ PRINT_DETAIL=${PRINT_DETAIL:-""}
 STRIDE=${STRIDE:-""}
 THRESHOLD=${THRESHOLD:-""}
 BLOCK_TOPK_RATIO="--block_topk_ratio ${BLOCK_TOPK_RATIO:-0.65}"
+FLEX_GAMMA_ARG="--flex_gamma ${FLEX_GAMMA:-0.9}"
+FLEX_TAU_ARG="--flex_tau ${FLEX_TAU:-0.1}"
 CONV_WEIGHT_PATH=${CONV_WEIGHT_PATH:-""}
 CONV_SAFE_TOPK=${CONV_SAFE_TOPK:-""}
 CONV_TRITON=${CONV_TRITON:-""}
@@ -64,6 +66,8 @@ while [[ $# -gt 0 ]]; do
         --print_detail) PRINT_DETAIL="--print_detail"; shift ;;
         --stride) STRIDE="--stride $2"; shift 2 ;;
         --block_topk_ratio) BLOCK_TOPK_RATIO="--block_topk_ratio $2"; shift 2 ;;
+        --flex_gamma) FLEX_GAMMA_ARG="--flex_gamma $2"; shift 2 ;;
+        --flex_tau) FLEX_TAU_ARG="--flex_tau $2"; shift 2 ;;
         --conv_weight_path) CONV_WEIGHT_PATH="--conv_weight_path $2"; shift 2 ;;
         --conv_safe_topk) CONV_SAFE_TOPK="--conv_safe_topk"; shift ;;
         --no_conv_use_triton) CONV_TRITON="--no_conv_use_triton"; shift ;;
@@ -98,7 +102,11 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
     elif [[ "${METRIC#--metric }" != "full" ]]; then
         if [[ -n ${STRIDE} ]]; then SETTINGS_INFO+="fuse_${STRIDE##* }_"; fi
         if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
-        SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
+        if [[ "${METRIC#--metric }" == "flex" ]]; then
+            SETTINGS_INFO+="gamma_${FLEX_GAMMA_ARG##* }_tau_${FLEX_TAU_ARG##* }_"
+        else
+            SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
+        fi
     fi
 
     RESULTS_DIR="${ROOT_DIR}/${RULER_RUN_TAG:+${RULER_RUN_TAG}_}${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
@@ -136,7 +144,8 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
             ${THRESHOLD} \
             ${STRIDE} \
             ${PRINT_DETAIL} \
-            ${BLOCK_TOPK_RATIO} ${CONV_WEIGHT_PATH} ${CONV_SAFE_TOPK} ${CONV_TRITON}
+            ${BLOCK_TOPK_RATIO} ${FLEX_GAMMA_ARG} ${FLEX_TAU_ARG} \
+            ${CONV_WEIGHT_PATH} ${CONV_SAFE_TOPK} ${CONV_TRITON}
         end_time=$(date +%s)
         time_diff=$((end_time - start_time))
         total_time=$((total_time + time_diff))
