@@ -372,8 +372,8 @@ if __name__ == "__main__":
         torch.manual_seed(0)
 
         # FlexPrefill args
-        gamma = 0.97
-        tau = 0.03
+        gamma = 0.96
+        tau = 0.06
 
         # Xattention/Conv use the shared top-k ratio below.  Flex is kept on
         # the original gamma/tau adaptive-budget path; do not pass

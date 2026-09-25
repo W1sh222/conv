@@ -525,8 +525,8 @@ def new_attention_forward(
                 query_states.transpose(1, 2),
                 key_states.transpose(1, 2),
                 value_states.transpose(1, 2),
-                gamma=0.97,
-                tau=0.03,
+                gamma=0.96,
+                tau=0.06,
                 topk_ratio=block_topk_ratio,
             ).transpose(1, 2)
         elif self.method == "minference":
