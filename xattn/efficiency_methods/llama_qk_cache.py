@@ -12,6 +12,13 @@ import torch
 from tqdm import tqdm
 from transformers.cache_utils import DynamicCache, StaticCache
 
+try:
+    # Transformers versions that expose OffloadedCache provide CPU-offloaded
+    # KV storage even when DynamicCache has no ``offloading`` keyword.
+    from transformers.cache_utils import OffloadedCache
+except ImportError:  # pragma: no cover - depends on the installed version
+    OffloadedCache = None
+
 from eval.efficiency.generate_prompt import generate_prompt
 from xattn.src.load_llama import FastPrefillConfig, load_model
 
@@ -40,6 +47,13 @@ def _make_cache(model, target_len: int, offload: bool):
         # DynamicCache offloading keeps inactive layer KV tensors on CPU.  It
         # is slower than StaticCache but prevents a 128K capture from reserving
         # a full GPU KV cache for every layer.
+        if OffloadedCache is not None:
+            try:
+                params = inspect.signature(OffloadedCache).parameters
+                kwargs = {"config": model.config} if "config" in params else {}
+                return OffloadedCache(**kwargs), "offloaded"
+            except (TypeError, ValueError):
+                pass
         try:
             params = inspect.signature(DynamicCache).parameters
             kwargs = {}
@@ -49,10 +63,10 @@ def _make_cache(model, target_len: int, offload: bool):
                 kwargs["offloading"] = True
             else:
                 raise TypeError("this Transformers version has no DynamicCache offloading")
-            return DynamicCache(**kwargs)
+            return DynamicCache(**kwargs), "offloaded-dynamic"
         except (TypeError, ValueError):
             print("[capture] DynamicCache(offloading=True) unavailable; using StaticCache", flush=True)
-    return _make_static_cache(model, target_len)
+    return _make_static_cache(model, target_len), "static"
 
 
 def _cache_paths(cache_dir: Path, target_len: int) -> Tuple[Path, Path]:
@@ -117,11 +131,11 @@ def capture_qk(
             f"prompt generator returned {input_ids.shape[1]} tokens, expected {target_len}"
         )
     input_device = model.model.embed_tokens.weight.device
-    past_key_values = _make_cache(model, target_len, offload_cache)
+    past_key_values, cache_kind = _make_cache(model, target_len, offload_cache)
 
     print(
         f"[capture] length={target_len} chunk={chunk_tokens} "
-        f"cache={'offloaded-dynamic' if offload_cache else 'static'}",
+        f"cache={cache_kind}",
         flush=True,
     )
     for start in tqdm(range(0, target_len, chunk_tokens), desc=f"capture {target_len}", unit="chunk"):

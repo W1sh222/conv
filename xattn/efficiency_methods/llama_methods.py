@@ -220,5 +220,10 @@ def estimate_density(
     if isinstance(out, tuple) and len(out) == 2:
         density = out[1]
         if density is not None:
-            return float(density.detach().float().mean().cpu().item())
+            # Current XAttention/Conv implementations may return either a
+            # scalar Python float or a tensor, depending on the density
+            # helper used by the selected kernel.
+            if torch.is_tensor(density):
+                return float(density.detach().float().mean().cpu().item())
+            return float(density)
     return None
