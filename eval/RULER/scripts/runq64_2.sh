@@ -61,6 +61,8 @@ BLOCK_TOPK_RATIO="--block_topk_ratio ${BLOCK_TOPK_RATIO:-0.65}"
 CONV_WEIGHT_PATH=${CONV_WEIGHT_PATH:-""}
 CONV_SAFE_TOPK=${CONV_SAFE_TOPK:-""}
 CONV_TRITON=${CONV_TRITON:-""}
+FLEX_GAMMA_ARG="--flex_gamma ${FLEX_GAMMA:-0.96}"
+FLEX_TAU_ARG="--flex_tau ${FLEX_TAU:-0.06}"
 
 shift 2 # Remove MODEL_NAME and BENCHMARK
 while [[ $# -gt 0 ]]; do
@@ -85,6 +87,8 @@ while [[ $# -gt 0 ]]; do
         --conv_weight_path) CONV_WEIGHT_PATH="--conv_weight_path $2"; shift 2 ;;
         --conv_safe_topk) CONV_SAFE_TOPK="--conv_safe_topk"; shift ;;
         --no_conv_use_triton) CONV_TRITON="--no_conv_use_triton"; shift ;;
+        --flex_gamma) FLEX_GAMMA_ARG="--flex_gamma $2"; shift 2 ;;
+        --flex_tau) FLEX_TAU_ARG="--flex_tau $2"; shift 2 ;;
         *)
             echo "Unknown option: $1"
             exit 1
@@ -128,7 +132,11 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
     elif [[ "${METRIC#--metric }" != "full" ]]; then
         if [[ -n ${STRIDE} ]]; then SETTINGS_INFO+="fuse_${STRIDE##* }_"; fi
         if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
-        SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
+        if [[ "${METRIC#--metric }" == "flex" ]]; then
+            SETTINGS_INFO+="gamma_${FLEX_GAMMA_ARG##* }_tau_${FLEX_TAU_ARG##* }_"
+        else
+            SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
+        fi
     fi
     
     RESULTS_DIR="${ROOT_DIR}/${RULER_RUN_TAG:+${RULER_RUN_TAG}_}${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
@@ -166,7 +174,7 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
             ${THRESHOLD} \
             ${STRIDE} \
             ${PRINT_DETAIL} \
-            ${BLOCK_TOPK_RATIO} ${CONV_WEIGHT_PATH} ${CONV_SAFE_TOPK} ${CONV_TRITON}
+            ${BLOCK_TOPK_RATIO} ${FLEX_GAMMA_ARG} ${FLEX_TAU_ARG} ${CONV_WEIGHT_PATH} ${CONV_SAFE_TOPK} ${CONV_TRITON}
         end_time=$(date +%s)
         time_diff=$((end_time - start_time))
         total_time=$((total_time + time_diff))
