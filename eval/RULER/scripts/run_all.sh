@@ -119,7 +119,7 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
     if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
     
     RESULTS_DIR="${ROOT_DIR}/ruler_full${SETTINGS_INFO}${MODEL_NAME}/${BENCHMARK}/${MAX_SEQ_LENGTH}"
-    DATA_DIR="${RULER_SHARED_DATA_ROOT:-/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/eval/RULER/scripts/data/ruler}/${BENCHMARK}/${MAX_SEQ_LENGTH}/data"
+    DATA_DIR="/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/eval/RULER/scripts/data/ruler_926/${BENCHMARK}/${MAX_SEQ_LENGTH}/data"
     PRED_DIR="${RESULTS_DIR}/pred"
     mkdir -p ${DATA_DIR}
     mkdir -p ${PRED_DIR}

@@ -24,6 +24,11 @@ SEQ_LENGTHS=(
     # 4096
 )
 
+# 64K full attention must not use Transformers' eager 4-D causal mask.  Keep
+# the same memory-efficient backend used by the 128K runners; custom sparse
+# methods still install their own prefill path.
+export MODEL_ATTENTION_IMPLEMENTATION="sdpa"
+
 MODEL_SELECT() {
     MODEL_NAME=$1
     MODEL_DIR=$2
