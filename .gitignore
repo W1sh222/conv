@@ -30,6 +30,13 @@ eval/RULER/scripts/data/ruler/
 eval/RULER/scripts/benchmark_root/
 eval/RULER/scripts/benchmark_root_08/
 eval/RULER/scripts/benchmark_root_old
+# Keep RULER benchmark outputs ignored except for the per-run summaries.
+# Git records the complete relative path, so nested task/model directories
+# remain part of the tracked filename hierarchy.
+!eval/RULER/scripts/benchmark_root/
+eval/RULER/scripts/benchmark_root/**
+!eval/RULER/scripts/benchmark_root/**/
+!eval/RULER/scripts/benchmark_root/**/summary.csv
 # Keep dataset download utilities in Git, but not the downloaded RULER data.
 eval/RULER/scripts/data/synthetic/json/*
 !eval/RULER/scripts/data/synthetic/json/download_qa_dataset.sh
