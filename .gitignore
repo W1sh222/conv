@@ -27,8 +27,10 @@ xattn/threshold
 eval/RULER/docker/
 eval/RULER/scripts/parallel_logs/
 eval/RULER/scripts/data/ruler/
+eval/RULER/scripts/data/ruler_926/
 eval/RULER/scripts/benchmark_root/
 eval/RULER/scripts/benchmark_root_08/
+eval/RULER/scripts/benchmark_root_0926/
 eval/RULER/scripts/benchmark_root_old
 # Keep RULER benchmark outputs ignored except for the per-run summaries.
 # Git records the complete relative path, so nested task/model directories
