@@ -66,6 +66,22 @@ def parse_args(args=None):
         ),
     )
 
+    parser.add_argument(
+        "--top_p",
+        "--topp",
+        "--threshold",
+        dest="top_p",
+        type=float,
+        default=None,
+        help=(
+            "Optional original XAttention/Conv top-p threshold, matching "
+            "the efficiency benchmark (for example 0.9). When supplied, "
+            "it takes precedence over --block_topk_ratio and uses the "
+            "find_blocks_chunked threshold selector. Omit to preserve the "
+            "existing fixed-ratio behavior."
+        ),
+    )
+
     parser.add_argument("--stride", type=int, default=8)
 
     parser.add_argument(
@@ -480,6 +496,11 @@ def new_attention_forward(
             block_topk_ratio = getattr(
                 self, "block_topk_ratio", 0.5
             )
+            top_p = getattr(self, "top_p", None)
+            selection_threshold = top_p if top_p is not None else threshold
+            selection_topk_ratio = (
+                None if top_p is not None else block_topk_ratio
+            )
 
             xattn_result = Xattention_prefill(
                 query_states,
@@ -487,11 +508,11 @@ def new_attention_forward(
                 value_states,
                 norm=1,
                 stride=8,
-                threshold=threshold,
+                threshold=selection_threshold,
                 use_triton=True,
                 keep_sink=True,
                 keep_recent=True,
-                topk_ratio=block_topk_ratio,
+                topk_ratio=selection_topk_ratio,
                 return_density=report_density,
             )
 
@@ -562,6 +583,11 @@ def new_attention_forward(
             conv_fallback_topk = getattr(self, "conv_fallback_topk", 8)
             conv_fallback_full = getattr(self, "conv_fallback_full", True)
             block_topk_ratio = getattr(self, "block_topk_ratio", 0.5)
+            top_p = getattr(self, "top_p", None)
+            selection_threshold = top_p if top_p is not None else threshold
+            selection_topk_ratio = (
+                None if top_p is not None else block_topk_ratio
+            )
             report_density = getattr(self, "report_density", True)
             print_density_per_layer = getattr(
                 self, "print_density_per_layer", False
@@ -579,7 +605,7 @@ def new_attention_forward(
                     value_states,
                     norm=1,
                     stride=8,
-                    threshold=threshold,
+                    threshold=selection_threshold,
                     use_triton=conv_use_triton,
                     keep_sink=True,
                     keep_recent=True,
@@ -587,7 +613,7 @@ def new_attention_forward(
                     layer_idx=conv_layer_idx,
                     conv_safe_topk=conv_safe_topk,
                     fallback_topk=conv_fallback_topk,
-                    topk_ratio=block_topk_ratio,
+                    topk_ratio=selection_topk_ratio,
                     return_density=report_density,
                 )
 
@@ -830,6 +856,7 @@ def load_model_and_tokenizer(path, model_name, runtime_args):
         metric=runtime_args.method,
         stride=runtime_args.stride,
         block_topk_ratio=runtime_args.block_topk_ratio,
+        top_p=runtime_args.top_p,
         conv_weight_path=runtime_args.conv_weight_path,
         conv_safe_topk=runtime_args.conv_safe_topk,
         conv_use_triton=runtime_args.conv_use_triton,
@@ -878,17 +905,31 @@ if __name__ == "__main__":
     seed_everything(42)
     args = parse_args()
 
+    if args.top_p is not None and not (0.0 < args.top_p <= 1.0):
+        raise ValueError(
+            "--top_p/--topp must be in (0, 1], "
+            f"got {args.top_p}"
+        )
+
     if args.method in ("conv", "xattn", "flex"):
         if not (0.0 < args.block_topk_ratio <= 1.0):
             raise ValueError(
                 "--block_topk_ratio must be in (0, 1], "
                 f"got {args.block_topk_ratio}"
             )
-        print(
-            f"[Block Selection] method={args.method} mode=topk_ratio "
-            f"ratio={args.block_topk_ratio:.4f}",
-            flush=True,
-        )
+        if args.top_p is not None and args.method in ("conv", "xattn"):
+            print(
+                f"[Block Selection] method={args.method} mode=top_p "
+                f"top_p={args.top_p:.4f} (overrides topk_ratio="
+                f"{args.block_topk_ratio:.4f})",
+                flush=True,
+            )
+        else:
+            print(
+                f"[Block Selection] method={args.method} mode=topk_ratio "
+                f"ratio={args.block_topk_ratio:.4f}",
+                flush=True,
+            )
     elif args.method == "minference":
         print(
             "[Block Selection] method=minference mode=fixed_vertical_slash",
@@ -948,9 +989,14 @@ if __name__ == "__main__":
             out_path = f"{pred_dir}/full/{dataset}-full.jsonl"
         elif args.method == "xattn":
             ratio_tag = f"{args.block_topk_ratio:.4f}".rstrip("0").rstrip(".")
+            selector_tag = (
+                f"-topp={args.top_p:.4f}".rstrip("0").rstrip(".")
+                if args.top_p is not None
+                else f"-topk_ratio={ratio_tag}"
+            )
             out_path = (
                 f"{pred_dir}/xattn/"
-                f"{dataset}-xattn-stride=8-topk_ratio={ratio_tag}.jsonl"
+                f"{dataset}-xattn-stride=8{selector_tag}.jsonl"
             )
         elif args.method == "flex":
             ratio_tag = f"{args.block_topk_ratio:.4f}".rstrip("0").rstrip(".")
@@ -965,9 +1011,14 @@ if __name__ == "__main__":
             )
         elif args.method == "conv":
             ratio_tag = f"{args.block_topk_ratio:.4f}".rstrip("0").rstrip(".")
+            selector_tag = (
+                f"-topp={args.top_p:.4f}".rstrip("0").rstrip(".")
+                if args.top_p is not None
+                else f"-topk_ratio={ratio_tag}"
+            )
             out_path = (
                 f"{pred_dir}/conv/"
-                f"{dataset}-conv-stride=8-topk_ratio={ratio_tag}.jsonl"
+                f"{dataset}-conv-stride=8{selector_tag}.jsonl"
             )
         else:
             raise ValueError(f"Unknown method: {args.method}")

@@ -1,0 +1,19 @@
+{"kind":"sheet","id":"ws/i3vayk","name":"Overview","index":0,"range":"A1:X51","address":"A1:X51","tables":1}
+{"kind":"table","sheet":"Overview","address":"A1:X51","rows":51,"cols":24,"values":[["RULER Benchmark Summary",null,null,null,null,null,null,null],["Source: eval/RULER/scripts/benchmark_root | 47 summary.csv files | scores are...",null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null],["Result Directory","Model","Method","Top-k","Flex Parameters","Benchmark","Length","Summary Relative Path"]],"valuesTruncated":true,"valuesPreviewRows":4,"valuesPreviewCols":8,"valuesPreviewAddress":"A1:H4"}
+{"kind":"sheet","id":"ws/ysx3n4","name":"Run Averages","index":1,"range":"A1:T20","address":"A1:T20","tables":1}
+{"kind":"table","sheet":"Run Averages","address":"A1:T20","rows":20,"cols":20,"values":[["RULER Averages by Result Directory",null,null,null,null,null,null,null],["Mean across all available context lengths for each result directory; task ave...",null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null],["Result Directory","Model","Method","Top-k","Lengths","niah_single_1","niah_single_2","niah_single_3"]],"valuesTruncated":true,"valuesPreviewRows":4,"valuesPreviewCols":8,"valuesPreviewAddress":"A1:H4"}
+{"kind":"sheet","id":"ws/aqv19u","name":"Length Averages","index":2,"range":"A1:S45","address":"A1:S45","tables":1}
+{"kind":"table","sheet":"Length Averages","address":"A1:S45","rows":45,"cols":19,"values":[["RULER Averages by Model, Method and Length",null,null,null,null,null,null,null],["Mean across result directories sharing the same model, method, top-k and cont...",null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null],["Model","Method","Top-k","Length","niah_single_1","niah_single_2","niah_single_3","niah_multikey_1"]],"valuesTruncated":true,"valuesPreviewRows":4,"valuesPreviewCols":8,"valuesPreviewAddress":"A1:H4"}
+Inspect result written to file: D:\hwd\conv\figures\ruler_benchmark_summary.xlsx.inspect.ndjson
+saved workbook check:
+{"kind":"sheet","id":"ws/y7xvm6","name":"Overview","index":0,"range":"A1:X51","address":"A1:X51","tables":1}
+{"kind":"table","sheet":"Overview","address":"A1:X51","rows":51,"cols":24,"values":[["RULER Benchmark Summary",null,null,null,null,null],["Source: eval/RULER/scripts/benchmark_root | 47 summary.csv files | scores are...",null,null,null,null,null],[null,null,null,null,null,null]],"valuesTruncated":true,"valuesPreviewRows":3,"valuesPreviewCols":6,"valuesPreviewAddress":"A1:F3"}
+{"kind":"sheet","id":"ws/en4ckj","name":"Run Averages","index":1,"range":"A1:T20","address":"A1:T20","tables":1}
+{"kind":"table","sheet":"Run Averages","address":"A1:T20","rows":20,"cols":20,"values":[["RULER Averages by Result Directory",null,null,null,null,null],["Mean across all available context lengths for each result directory; task ave...",null,null,null,null,null],[null,null,null,null,null,null]],"valuesTruncated":true,"valuesPreviewRows":3,"valuesPreviewCols":6,"valuesPreviewAddress":"A1:F3"}
+{"kind":"sheet","id":"ws/qqwah7","name":"Length Averages","index":2,"range":"A1:S45","address":"A1:S45","tables":1}
+{"kind":"table","sheet":"Length Averages","address":"A1:S45","rows":45,"cols":19,"values":[["RULER Averages by Model, Method and Length",null,null,null,null,null],["Mean across result directories sharing the same model, method, top-k and cont...",null,null,null,null,null],[null,null,null,null,null,null]],"valuesTruncated":true,"valuesPreviewRows":3,"valuesPreviewCols":6,"valuesPreviewAddress":"A1:F3"}
+{
+  "files": 47,
+  "outputPath": "D:\\hwd\\conv\\figures\\ruler_benchmark_summary.xlsx",
+  "previewPath": "D:\\hwd\\conv\\tmp\\ruler_benchmark_summary_preview.png"
+}

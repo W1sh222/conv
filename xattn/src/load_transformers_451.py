@@ -50,6 +50,7 @@ class BaseFastPrefillConfig(dict):
         conv_use_triton: bool = True,
         conv_fallback_topk: int = 8,
         block_topk_ratio: Optional[float] = None,
+        top_p: Optional[float] = None,
         # Flex keeps the original vertical/slash gamma/tau controls.  These
         # are independent of the Conv/Xattn fixed top-k ratio.
         flex_gamma: float = 0.96,
@@ -82,6 +83,10 @@ class BaseFastPrefillConfig(dict):
             block_topk_ratio = float(block_topk_ratio)
             if not 0.0 < block_topk_ratio <= 1.0:
                 raise ValueError("block_topk_ratio must be in (0, 1]")
+        if top_p is not None:
+            top_p = float(top_p)
+            if not 0.0 < top_p <= 1.0:
+                raise ValueError("top_p must be in (0, 1]")
         if not 0.0 < float(flex_gamma) <= 1.0:
             raise ValueError("flex_gamma must be in (0, 1]")
         if float(flex_tau) < 0.0:
@@ -123,6 +128,11 @@ class BaseFastPrefillConfig(dict):
         self.conv_use_triton = bool(conv_use_triton)
         self.conv_fallback_topk = int(conv_fallback_topk)
         self.block_topk_ratio = block_topk_ratio
+        # Optional original threshold/top-p selector.  When supplied, the
+        # prefill path ignores block_topk_ratio and uses find_blocks_chunked,
+        # matching the standalone efficiency benchmark.  None preserves the
+        # existing fixed-ratio behavior exactly.
+        self.top_p = top_p
         self.flex_gamma = float(flex_gamma)
         self.flex_tau = float(flex_tau)
         self.flex_min_budget = (
@@ -276,6 +286,10 @@ def _run_prefill(self, query_states, key_states, value_states, attention_mask):
     config: BaseFastPrefillConfig = self.fastprefillconfig
     method = config.metric
     threshold = config.threshold_for_layer(self.layer_idx, query_states.device)
+    selection_threshold = config.top_p if config.top_p is not None else threshold
+    selection_topk_ratio = (
+        None if config.top_p is not None else config.block_topk_ratio
+    )
 
     if method == "xattn":
         from xattn.src.Xattention import Xattention_prefill
@@ -286,9 +300,9 @@ def _run_prefill(self, query_states, key_states, value_states, attention_mask):
             value_states,
             stride=config.stride,
             norm=1,
-            threshold=threshold,
+            threshold=selection_threshold,
             use_triton=True,
-            topk_ratio=config.block_topk_ratio,
+            topk_ratio=selection_topk_ratio,
             return_density=config.report_density,
         )
     elif method == "conv":
@@ -303,13 +317,13 @@ def _run_prefill(self, query_states, key_states, value_states, attention_mask):
             value_states,
             stride=config.stride,
             norm=1,
-            threshold=threshold,
+            threshold=selection_threshold,
             use_triton=config.conv_use_triton,
             conv_weight_path=config.conv_weight_path,
             layer_idx=self.layer_idx,
             conv_safe_topk=config.conv_safe_topk,
             fallback_topk=config.conv_fallback_topk,
-            topk_ratio=config.block_topk_ratio,
+            topk_ratio=selection_topk_ratio,
             return_density=config.report_density,
         )
     elif method == "flex":

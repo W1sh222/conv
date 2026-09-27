@@ -4,6 +4,7 @@ set -euo pipefail
 # Usage:
 #   bash scripts/run_longbench_451.sh llama conv
 #   bash scripts/run_longbench_451.sh qwen3 conv --conv_weight_path /path/to/weight.pt --block_topk_ratio 0.7
+#   ... xattn --top_p 0.9   # original efficiency-style top-p selector
 #   shorthand for Conv: ... qwen3 conv /path/to/weight.pt 0.7
 MODEL_KIND="${1:-llama}"
 if [[ $# -gt 0 ]]; then shift; fi
@@ -56,6 +57,7 @@ DEFAULT_TASKS="narrativeqa qasper multifieldqa_en hotpotqa 2wikimqa musique gov_
 TASKS="${LONGBENCH_TASKS:-${DEFAULT_TASKS}}"
 STRIDE_VALUE="${STRIDE:-8}"
 TOPK_VALUE="${BLOCK_TOPK_RATIO:-0.65}"
+TOP_P_VALUE=""
 
 # Read an explicitly supplied Conv weight/result tag so each checkpoint gets a
 # separate LongBench directory below the base model directory.
@@ -87,6 +89,17 @@ while (( i < ${#EXTRA_ARGS[@]} )); do
     --block_topk_ratio=*)
       TOPK_VALUE="${ARG#*=}"
       ;;
+    --top_p|--topp|--threshold)
+      i=$((i + 1))
+      if (( i >= ${#EXTRA_ARGS[@]} )); then
+        echo "${ARG} requires a value" >&2
+        exit 2
+      fi
+      TOP_P_VALUE="${EXTRA_ARGS[$i]}"
+      ;;
+    --top_p=*|--topp=*|--threshold=*)
+      TOP_P_VALUE="${ARG#*=}"
+      ;;
     --result_tag)
       i=$((i + 1))
       if (( i >= ${#EXTRA_ARGS[@]} )); then
@@ -113,6 +126,13 @@ else
   OUTPUT_TAG="default_${METHOD}"
 fi
 
+# Keep top-p runs in a separate directory so they cannot overwrite an older
+# fixed-ratio LongBench run.  An explicit --result_tag remains authoritative.
+if [[ -z "${EXPLICIT_RESULT_TAG}" && -z "${LONGBENCH_RESULT_TAG:-}" && -n "${TOP_P_VALUE}" ]]; then
+  TOP_P_TAG="${TOP_P_VALUE//./p}"
+  OUTPUT_TAG="${OUTPUT_TAG}_topp_${TOP_P_TAG}"
+fi
+
 OUTPUT_TAG_ARGS=()
 RESULTS_SUBDIR="${METHOD}"
 if [[ -n "${OUTPUT_TAG}" ]]; then
@@ -120,7 +140,7 @@ if [[ -n "${OUTPUT_TAG}" ]]; then
   RESULTS_SUBDIR="${OUTPUT_TAG}/${METHOD}"
 fi
 
-echo "[LongBench] model_kind=${MODEL_KIND} model=${MODEL_PATH} method=${METHOD} stride=${STRIDE_VALUE} topk=${TOPK_VALUE}"
+echo "[LongBench] model_kind=${MODEL_KIND} model=${MODEL_PATH} method=${METHOD} stride=${STRIDE_VALUE} topk=${TOPK_VALUE} topp=${TOP_P_VALUE:-<fixed-ratio>}"
 echo "[LongBench] conv_weight=${CONV_WEIGHT_ARG:-<model-default>}"
 echo "[LongBench] output=eval/LongBench/pred/$(basename "${MODEL_PATH}")/${RESULTS_SUBDIR}"
 
