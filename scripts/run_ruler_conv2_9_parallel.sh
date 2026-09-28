@@ -26,6 +26,7 @@ Options:
   --minference-slash N     MInference slash budget (default: 6096)
   --samples N       samples per task (default: 100)
   --stride N        block stride (default: 8)
+  --run-tag NAME    output experiment tag
   --log-dir PATH    per-GPU log directory
 EOF
   exit 2
@@ -41,6 +42,7 @@ MINFERENCE_VERTICAL_SIZE="${MINFERENCE_VERTICAL_SIZE:-1000}"
 MINFERENCE_SLASH_SIZE="${MINFERENCE_SLASH_SIZE:-6096}"
 SAMPLES="${RULER_NUM_SAMPLES:-100}"
 STRIDE="${STRIDE:-8}"
+RUN_TAG="${RULER_RUN_TAG:-}"
 LOG_DIR="${LOG_DIR:-${REPO_ROOT}/eval/RULER/scripts/parallel_logs/llama_conv2_9}"
 
 if [[ $# -gt 0 && "$1" != -* ]]; then
@@ -116,6 +118,11 @@ while [[ $# -gt 0 ]]; do
       STRIDE="$2"
       shift 2
       ;;
+    --run-tag|--ruler-run-tag)
+      [[ $# -ge 2 ]] || usage
+      RUN_TAG="$2"
+      shift 2
+      ;;
     --log-dir)
       [[ $# -ge 2 ]] || usage
       LOG_DIR="$2"
@@ -168,8 +175,8 @@ awk "BEGIN { if (!(${FLEX_TAU} >= 0)) exit 1 }" || {
   exit 2
 }
 
-if [[ -n "${RULER_RUN_TAG:-}" ]]; then
-  WEIGHT_TAG="${RULER_RUN_TAG}"
+if [[ -n "${RUN_TAG}" ]]; then
+  WEIGHT_TAG="${RUN_TAG}"
 elif [[ "${METHOD}" == "conv" ]]; then
   WEIGHT_TAG="$(basename -- "${WEIGHT_PATH}")"
   WEIGHT_TAG="${WEIGHT_TAG%.pt}"
