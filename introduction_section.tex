@@ -1,0 +1,103 @@
+% Requires graphicx and the manuscript's existing natbib configuration.
+% Citation keys are already present in related_work/conv_related_work.bib.
+\section{Introduction}
+\label{sec:introduction}
+
+Long-context language models support tasks that require reasoning over
+extended documents, retrieving distant evidence, and processing large code
+contexts. Their practical use depends on processing long prompts efficiently
+before autoregressive generation begins. During this prefilling stage,
+attention evaluates a quadratic number of query--key interactions, making
+long prompts expensive even when model parameters remain unchanged.
+Memory-efficient kernels such as FlashAttention~\citep{dao2022flashattention}
+reduce the cost of executing exact attention, while sparse attention reduces
+computation by omitting selected interactions. For pretrained language models,
+the central challenge is to identify which interactions can be skipped without
+discarding information needed for prediction.
+
+Block-sparse prefilling addresses this challenge by selecting groups of
+query--key interactions that can be processed efficiently by sparse kernels.
+Recent methods construct input-dependent patterns using structured attention
+families~\citep{jiang2024minference}, adapt patterns and budgets to individual
+inputs and heads~\citep{lai2025flexprefill}, or estimate block importance from
+antidiagonal samples~\citep{xu2025xattention}. Learned selectors such as
+SeerAttention~\citep{gao2025seerattention} instead train lightweight gates to
+predict block importance. These advances make sparse prefilling practical,
+but leave a question about selection quality: how well does an estimated
+block score reflect the benefit of retaining that block within the selected
+set? An inexpensive importance proxy need not order blocks in the same way
+as their contributions to the final prediction.
+
+We investigate this distinction through two observations. First, in a
+controlled replacement experiment, a block excluded by the initial ranking
+can reduce the ground-truth answer loss when substituted for a higher-scored
+selected block, with the block budget and all other selections held fixed.
+Thus, a higher initial score does not always imply greater prediction
+utility. Second, selected-block masks exhibit vertical and diagonal
+structures, suggesting that nearby scores may provide useful context.
+Matching candidates with similar center scores and examining residual
+associations show that neighborhood scores contain additional information
+about utility in some examined layers. This relationship varies across
+layers and is observational rather than causal. Together, these findings
+motivate learning how local score structure should influence block selection.
+
+We propose \emph{Conv}, a learnable convolutional refinement of block scores
+for sparse prefilling. Figure~\ref{fig:overall_framework} places the method
+within the language-model inference pipeline. Starting from RoPE-encoded
+queries and keys, an antidiagonal estimator produces an initial block-score
+map. A layer- and head-specific $7\times7$ convolution then combines each
+score with its local neighborhood before block selection. The selected
+indices guide attention computed from the original-resolution queries,
+keys, and values. The convolution therefore modifies the selection criterion;
+it does not replace the attention weights computed within retained blocks.
+Only the convolutional kernels are optimized, using attention statistics
+from the frozen model and task-relevant supervision. Their parameters can
+adapt the contribution of neighboring scores to each layer and head, while
+the pretrained language-model parameters remain frozen and standard decoding
+is unchanged.
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\textwidth]{Figs/overall.png}
+    \caption{
+        Position of Conv within long-context language-model inference.
+        During prefilling, antidiagonal scoring produces initial block scores
+        from RoPE-encoded queries and keys. A learnable $7\times7$ convolution
+        refines these scores before block selection; top-$k$ selection is
+        illustrated. The selected indices guide block-sparse attention using
+        full-resolution queries, keys, and values. Only the convolutional
+        kernels are trained. The language-model parameters remain frozen,
+        and subsequent autoregressive decoding follows the standard path.
+    }
+    \label{fig:overall_framework}
+\end{figure*}
+
+We evaluate Conv on Qwen3-8B and Llama-3.1-8B using RULER and LongBench.
+Fixed-budget top-$k$ comparisons isolate the effect of score refinement,
+whereas top-$p$ efficiency measurements examine adaptive selection when the
+retained block count depends on the input. On Llama-3.1-8B, Conv improves
+RULER accuracy over the Xattn baseline across all tested combinations of
+context length and keep ratio. The broader results also reveal dependence
+on the model and operating point: the more aggressive Qwen3 configuration
+does not uniformly improve benchmark scores, and short prompts do not
+benefit from the measured sparse-attention speedups. These comparisons
+establish the scope of the gains without assuming that a common threshold
+implies equal sparsity or equal accuracy.
+
+Our contributions are threefold:
+\begin{itemize}
+    \item We distinguish estimated block importance from prediction utility
+    through controlled block replacements and identify layer-dependent
+    neighborhood information that supplements a block's own score.
+
+    \item We introduce a lightweight convolutional score-refinement module
+    that learns local selection cues for each layer and head while keeping
+    the language model frozen.
+
+    \item We evaluate selection quality and efficiency under complementary
+    top-$k$ and top-$p$ protocols. On Llama-3.1-8B, Conv gains an average of
+    3.07 RULER points over Xattn across 12 matched-budget settings. In a
+    separate top-$p=0.9$ benchmark at 128K, its prefill attention path reaches
+    $3.67\times$ speedup over full attention, compared with $2.87\times$
+    for Xattn.
+\end{itemize}
