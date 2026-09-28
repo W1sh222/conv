@@ -1,4 +1,4 @@
-"""Q/K capture with bounded GPU memory for the standalone Llama benchmark."""
+"""Q/K capture with bounded GPU memory for Llama and Qwen3 benchmarks."""
 
 from __future__ import annotations
 
@@ -20,9 +20,6 @@ except ImportError:  # pragma: no cover - depends on the installed version
     OffloadedCache = None
 
 from eval.efficiency.generate_prompt import generate_prompt
-from xattn.src.load_llama import FastPrefillConfig, load_model
-
-
 def _make_static_cache(model, max_cache_len: int):
     """Support both Transformers 4.46 and 4.51 StaticCache signatures."""
     params = inspect.signature(StaticCache).parameters
@@ -101,8 +98,17 @@ def capture_qk(
     rope_factor: float,
     rope_original_max_position_embeddings: int,
     max_position_embeddings: Optional[int],
+    model_kind: str = "llama",
 ):
     """Capture one layer's post-RoPE Q/K while chunking the model forward."""
+    model_kind = str(model_kind).lower()
+    if model_kind == "llama":
+        from xattn.src.load_llama import FastPrefillConfig, load_model
+    elif model_kind == "qwen3":
+        from xattn.src.load_qwen3 import FastPrefillConfig, load_model
+    else:
+        raise ValueError(f"unsupported model_kind: {model_kind}")
+
     cache_dir.mkdir(parents=True, exist_ok=True)
     cached = load_cached_qk(cache_dir, target_len)
     if cached is not None:

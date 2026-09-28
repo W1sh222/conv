@@ -102,12 +102,12 @@ def parse_args():
     parser.add_argument(
         "--minference-vertical-size",
         type=int,
-        default=int(os.environ.get("MINFERENCE_VERTICAL_SIZE", "1000")),
+        default=int(os.environ.get("MINFERENCE_VERTICAL_SIZE", "512")),
     )
     parser.add_argument(
         "--minference-slash-size",
         type=int,
-        default=int(os.environ.get("MINFERENCE_SLASH_SIZE", "6096")),
+        default=int(os.environ.get("MINFERENCE_SLASH_SIZE", "3072")),
     )
     parser.add_argument(
         "--full-backend",

@@ -30,6 +30,29 @@ DEFAULT_THRESHOLD = 0.90
 DEFAULT_FLEX_GAMMA = 0.96
 DEFAULT_FLEX_TAU = 0.06
 DEFAULT_CONV_WEIGHT = "initial_vertical_diag"
+DEFAULT_QWEN3_CONV_WEIGHT = (
+    "/inspire/hdd/global_user/gexinmu-253108100065/Repos/"
+    "fuyicheng_workshop/Innovator-lm-evaluation-hardness/"
+    "x-attention-main/xattn/qwen_weights/"
+    "conv_qwen3_t065_64k128k_balanced_v3/"
+    "stage3_extend_96k128k_t065_s8_yarn4_bf16_ema_step9250.pt"
+)
+
+
+def _conv_prefill_for_model(model_kind: str):
+    if str(model_kind).lower() == "qwen3":
+        from xattn.src.Conv_qwen3 import Conv_prefill as qwen_conv_prefill
+
+        return qwen_conv_prefill
+    return Conv_prefill
+
+
+def _conv_weight_for_model(model_kind: str, conv_weight_path: Optional[str]):
+    if conv_weight_path and conv_weight_path != DEFAULT_CONV_WEIGHT:
+        return conv_weight_path
+    if str(model_kind).lower() == "qwen3":
+        return DEFAULT_QWEN3_CONV_WEIGHT
+    return conv_weight_path or DEFAULT_CONV_WEIGHT
 
 
 def _torch_full_prefill(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
@@ -57,8 +80,9 @@ def call_method(
     flex_gamma: float,
     flex_tau: float,
     full_backend: str,
-    minference_vertical_size: int = 1000,
-    minference_slash_size: int = 6096,
+    minference_vertical_size: int = 512,
+    minference_slash_size: int = 3072,
+    model_kind: str = "llama",
 ) -> torch.Tensor:
     """Run one method with a common top-p/128-token-block contract."""
     method = method.lower()
@@ -82,7 +106,8 @@ def call_method(
         )
 
     if method == "conv":
-        return Conv_prefill(
+        conv_prefill = _conv_prefill_for_model(model_kind)
+        return conv_prefill(
             q,
             k,
             v,
@@ -91,7 +116,7 @@ def call_method(
             use_triton=True,
             chunk_size=chunk_size,
             causal=True,
-            conv_weight_path=conv_weight_path or DEFAULT_CONV_WEIGHT,
+            conv_weight_path=_conv_weight_for_model(model_kind, conv_weight_path),
             layer_idx=conv_layer,
         )
 
@@ -134,8 +159,9 @@ def benchmark_prefill(
     flex_gamma: float,
     flex_tau: float,
     full_backend: str,
-    minference_vertical_size: int = 1000,
-    minference_slash_size: int = 6096,
+    minference_vertical_size: int = 512,
+    minference_slash_size: int = 3072,
+    model_kind: str = "llama",
 ) -> float:
     """Warm up and time one method; synchronize around every timed call."""
     fn: Callable[[], torch.Tensor] = lambda: call_method(
@@ -153,6 +179,7 @@ def benchmark_prefill(
         minference_vertical_size=minference_vertical_size,
         minference_slash_size=minference_slash_size,
         full_backend=full_backend,
+        model_kind=model_kind,
     )
 
     for _ in range(warmups):
@@ -186,10 +213,12 @@ def estimate_density(
     conv_layer: int,
     flex_gamma: float,
     flex_tau: float,
+    model_kind: str = "llama",
 ) -> Optional[float]:
     """Return optional kernel density without contaminating timing loops."""
     if method not in {"xattn", "conv"}:
         return None
+    conv_prefill = _conv_prefill_for_model(model_kind)
     out = (
         Xattention_prefill(
             q,
@@ -203,7 +232,7 @@ def estimate_density(
             return_density=True,
         )
         if method == "xattn"
-        else Conv_prefill(
+        else conv_prefill(
             q,
             k,
             v,
@@ -212,7 +241,7 @@ def estimate_density(
             use_triton=True,
             chunk_size=chunk_size,
             causal=True,
-            conv_weight_path=conv_weight_path or DEFAULT_CONV_WEIGHT,
+            conv_weight_path=_conv_weight_for_model(model_kind, conv_weight_path),
             layer_idx=conv_layer,
             return_density=True,
         )

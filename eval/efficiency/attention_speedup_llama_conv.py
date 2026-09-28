@@ -1,10 +1,10 @@
-"""Upstream-style Llama top-p speed test with an additional Conv column.
+"""Upstream-style top-p speed test for Llama/Qwen3 with an additional Conv column.
 
-This is intentionally a new entry point.  It does not modify the upstream
-``attention_speedup.py`` or any existing inference loader.  Q/K are captured
+This is intentionally a separate entry point from the ratio-based benchmark;
+it does not change any inference loader.  Q/K are captured
 once per length, then Full, Flex, XAttention and Conv are timed on identical
-Q/K/V tensors.  Llama only; Conv uses the same 128-token block and threshold
-(top-p) selection contract as XAttention.
+Q/K/V tensors.  Both Llama and Qwen3 use the same 128-token block and
+threshold (top-p) selection contract as XAttention.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ import torch
 
 from xattn.efficiency_methods.llama_methods import (
     DEFAULT_CONV_WEIGHT,
+    DEFAULT_QWEN3_CONV_WEIGHT,
     DEFAULT_FLEX_GAMMA,
     DEFAULT_FLEX_TAU,
     DEFAULT_THRESHOLD,
@@ -30,13 +31,17 @@ from xattn.efficiency_methods.llama_qk_cache import capture_qk
 
 
 DEFAULT_MODEL = "/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct"
+DEFAULT_QWEN3_MODEL = "/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Qwen3-8B"
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model-path", default=os.environ.get("LLAMA_MODEL_PATH", DEFAULT_MODEL))
+    parser.add_argument("--model-kind", choices=("llama", "qwen3"), default=os.environ.get("MODEL_KIND", "llama"))
+    # Resolve the model-specific default after parsing --model-kind.  Keeping
+    # this as None also makes an explicit --model-path unambiguous.
+    parser.add_argument("--model-path", default=None)
     parser.add_argument("--lengths", default=os.environ.get("EFFICIENCY_LENGTHS", "4,8,16,32,64,128"))
-    parser.add_argument("--cache-dir", default=os.environ.get("LLAMA_QK_CACHE_DIR", "output/efficiency_llama_conv"))
+    parser.add_argument("--cache-dir", default=None)
     parser.add_argument("--layer", type=int, default=int(os.environ.get("EFFICIENCY_LAYER", "12")))
     parser.add_argument("--iterations", type=int, default=int(os.environ.get("EFFICIENCY_ITERATIONS", "50")))
     parser.add_argument("--warmups", type=int, default=int(os.environ.get("EFFICIENCY_WARMUPS", "30")))
@@ -44,11 +49,11 @@ def parse_args():
     parser.add_argument("--method-chunk-size", type=int, default=int(os.environ.get("METHOD_CHUNK_SIZE", "32768")))
     parser.add_argument("--stride", type=int, choices=(8, 16), default=int(os.environ.get("STRIDE", "8")))
     parser.add_argument("--threshold", type=float, default=float(os.environ.get("TOPP_THRESHOLD", str(DEFAULT_THRESHOLD))))
-    parser.add_argument("--conv-weight-path", default=os.environ.get("CONV_WEIGHT_PATH", DEFAULT_CONV_WEIGHT))
+    parser.add_argument("--conv-weight-path", default=None)
     parser.add_argument("--flex-gamma", type=float, default=float(os.environ.get("FLEX_GAMMA", str(DEFAULT_FLEX_GAMMA))))
     parser.add_argument("--flex-tau", type=float, default=float(os.environ.get("FLEX_TAU", str(DEFAULT_FLEX_TAU))) )
-    parser.add_argument("--minference-vertical-size", type=int, default=int(os.environ.get("MINFERENCE_VERTICAL_SIZE", "1000")))
-    parser.add_argument("--minference-slash-size", type=int, default=int(os.environ.get("MINFERENCE_SLASH_SIZE", "6096")))
+    parser.add_argument("--minference-vertical-size", type=int, default=int(os.environ.get("MINFERENCE_VERTICAL_SIZE", "512")))
+    parser.add_argument("--minference-slash-size", type=int, default=int(os.environ.get("MINFERENCE_SLASH_SIZE", "3072")))
     parser.add_argument("--full-backend", choices=("flashinfer", "sdpa"), default=os.environ.get("FULL_BACKEND", "flashinfer"))
     parser.add_argument("--offload-cache", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--rope-scaling-type", choices=("none", "yarn"), default=os.environ.get("ROPE_SCALING_TYPE", "none"))
@@ -61,6 +66,21 @@ def parse_args():
 
 def main():
     args = parse_args()
+    args.model_kind = str(args.model_kind).lower()
+    if args.model_path is None:
+        args.model_path = os.environ.get(
+            "QWEN3_MODEL_PATH" if args.model_kind == "qwen3" else "LLAMA_MODEL_PATH",
+            DEFAULT_QWEN3_MODEL if args.model_kind == "qwen3" else DEFAULT_MODEL,
+        )
+    if args.conv_weight_path is None:
+        args.conv_weight_path = (
+            DEFAULT_QWEN3_CONV_WEIGHT if args.model_kind == "qwen3" else DEFAULT_CONV_WEIGHT
+        )
+    if args.cache_dir is None:
+        args.cache_dir = os.environ.get(
+            "QWEN3_QK_CACHE_DIR" if args.model_kind == "qwen3" else "LLAMA_QK_CACHE_DIR",
+            f"output/efficiency_{args.model_kind}_conv",
+        )
     if not torch.cuda.is_available():
         raise RuntimeError("This benchmark requires CUDA.")
     if args.iterations <= 0 or args.warmups < 0:
@@ -83,11 +103,12 @@ def main():
     # complete (and does not depend on a missing dictionary key).
     methods = ("full", "flex", "xattn", "conv", "minference")
     print(
-        f"[Llama efficiency] model={args.model_path} lengths={[x // 1024 for x in lengths]}K "
+        f"[{args.model_kind} top-p efficiency] model={args.model_path} lengths={[x // 1024 for x in lengths]}K "
         f"stride={args.stride} threshold={args.threshold} "
         f"conv_weight={args.conv_weight_path} full={args.full_backend} "
         f"flex_gamma={args.flex_gamma} flex_tau={args.flex_tau} "
-        f"offload_cache={args.offload_cache}",
+        f"offload_cache={args.offload_cache} minference_v={args.minference_vertical_size} "
+        f"minference_s={args.minference_slash_size}",
         flush=True,
     )
 
@@ -104,6 +125,7 @@ def main():
             rope_factor=args.rope_factor,
             rope_original_max_position_embeddings=args.rope_original_max_position_embeddings,
             max_position_embeddings=args.max_position_embeddings,
+            model_kind=args.model_kind,
         )
         q = q_cpu.to("cuda", dtype=torch.bfloat16, non_blocking=True).contiguous()
         k = k_cpu.to("cuda", dtype=torch.bfloat16, non_blocking=True).contiguous()
@@ -133,6 +155,7 @@ def main():
                     minference_vertical_size=args.minference_vertical_size,
                     minference_slash_size=args.minference_slash_size,
                     full_backend=args.full_backend,
+                    model_kind=args.model_kind,
                 )
                 if method in {"xattn", "conv"}:
                     densities[method] = estimate_density(
@@ -147,6 +170,7 @@ def main():
                         conv_layer=args.layer,
                         flex_gamma=args.flex_gamma,
                         flex_tau=args.flex_tau,
+                        model_kind=args.model_kind,
                     )
             except Exception as exc:
                 print(f"[WARN] {method} failed at {target_len // 1024}K: {exc!r}", flush=True)
