@@ -15,7 +15,15 @@ ft_scripts/sparse_ruler/logs/
 eval/HunyuanVideo
 eval/VLMEvalKit
 eval/LongBench/data_cache
-eval/LongBench/pred
+# LongBench predictions are generated artifacts by default.  Keep only the
+# per-run result.json summaries for the two supported model directories in Git.
+eval/LongBench/pred/**
+!eval/LongBench/pred/Llama-3.1-8B-Instruct/
+!eval/LongBench/pred/Llama-3.1-8B-Instruct/**/
+!eval/LongBench/pred/Llama-3.1-8B-Instruct/**/result.json
+!eval/LongBench/pred/Qwen3-8B/
+!eval/LongBench/pred/Qwen3-8B/**/
+!eval/LongBench/pred/Qwen3-8B/**/result.json
 xattn/qwen_weights/
 xattn/llama_weights/
 xattn/conv_ker_weights_16k

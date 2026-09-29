@@ -1,0 +1,18 @@
+{
+    "2wikimqa-flex-topk_ratio=0.65.jsonl": 37.26,
+    "gov_report-flex-topk_ratio=0.65.jsonl": 33.37,
+    "hotpotqa-flex-topk_ratio=0.65.jsonl": 57.85,
+    "lcc-flex-topk_ratio=0.65.jsonl": 58.16,
+    "lsht-flex-topk_ratio=0.65.jsonl": 39.75,
+    "multi_news-flex-topk_ratio=0.65.jsonl": 24.66,
+    "multifieldqa_en-flex-topk_ratio=0.65.jsonl": 53.92,
+    "musique-flex-topk_ratio=0.65.jsonl": 32.62,
+    "narrativeqa-flex-topk_ratio=0.65.jsonl": 27.57,
+    "qasper-flex-topk_ratio=0.65.jsonl": 43.72,
+    "qmsum-flex-topk_ratio=0.65.jsonl": 24.44,
+    "repobench-p-flex-topk_ratio=0.65.jsonl": 58.36,
+    "samsum-flex-topk_ratio=0.65.jsonl": 44.98,
+    "trec-flex-topk_ratio=0.65.jsonl": 74.0,
+    "triviaqa-flex-topk_ratio=0.65.jsonl": 88.97,
+    "vcsum-flex-topk_ratio=0.65.jsonl": 14.27
+}

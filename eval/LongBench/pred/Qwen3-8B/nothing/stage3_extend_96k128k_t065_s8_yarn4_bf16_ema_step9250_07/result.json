@@ -1,0 +1,18 @@
+{
+    "2wikimqa-conv-stride=8-topk_ratio=0.7.jsonl": 43.16,
+    "gov_report-conv-stride=8-topk_ratio=0.7.jsonl": 33.43,
+    "hotpotqa-conv-stride=8-topk_ratio=0.7.jsonl": 59.01,
+    "lcc-conv-stride=8-topk_ratio=0.7.jsonl": 50.6,
+    "lsht-conv-stride=8-topk_ratio=0.7.jsonl": 47.0,
+    "multi_news-conv-stride=8-topk_ratio=0.7.jsonl": 24.67,
+    "multifieldqa_en-conv-stride=8-topk_ratio=0.7.jsonl": 52.16,
+    "musique-conv-stride=8-topk_ratio=0.7.jsonl": 33.06,
+    "narrativeqa-conv-stride=8-topk_ratio=0.7.jsonl": 26.15,
+    "qasper-conv-stride=8-topk_ratio=0.7.jsonl": 44.85,
+    "qmsum-conv-stride=8-topk_ratio=0.7.jsonl": 23.58,
+    "repobench-p-conv-stride=8-topk_ratio=0.7.jsonl": 54.24,
+    "samsum-conv-stride=8-topk_ratio=0.7.jsonl": 43.33,
+    "trec-conv-stride=8-topk_ratio=0.7.jsonl": 71.0,
+    "triviaqa-conv-stride=8-topk_ratio=0.7.jsonl": 89.11,
+    "vcsum-conv-stride=8-topk_ratio=0.7.jsonl": 14.26
+}

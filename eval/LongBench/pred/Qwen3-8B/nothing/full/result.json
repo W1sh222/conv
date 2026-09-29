@@ -1,0 +1,18 @@
+{
+    "2wikimqa-full.jsonl": 42.95,
+    "gov_report-full.jsonl": 33.57,
+    "hotpotqa-full.jsonl": 59.34,
+    "lcc-full.jsonl": 57.77,
+    "lsht-full.jsonl": 47.5,
+    "multi_news-full.jsonl": 24.76,
+    "multifieldqa_en-full.jsonl": 54.17,
+    "musique-full.jsonl": 36.51,
+    "narrativeqa-full.jsonl": 26.31,
+    "qasper-full.jsonl": 48.34,
+    "qmsum-full.jsonl": 24.09,
+    "repobench-p-full.jsonl": 56.46,
+    "samsum-full.jsonl": 44.17,
+    "trec-full.jsonl": 71.5,
+    "triviaqa-full.jsonl": 90.71,
+    "vcsum-full.jsonl": 14.06
+}

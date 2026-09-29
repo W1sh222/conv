@@ -1,0 +1,18 @@
+{
+    "2wikimqa-minference-fixed_vs.jsonl": 42.2,
+    "gov_report-minference-fixed_vs.jsonl": 33.2,
+    "hotpotqa-minference-fixed_vs.jsonl": 60.48,
+    "lcc-minference-fixed_vs.jsonl": 57.83,
+    "lsht-minference-fixed_vs.jsonl": 47.0,
+    "multi_news-minference-fixed_vs.jsonl": 24.99,
+    "multifieldqa_en-minference-fixed_vs.jsonl": 54.28,
+    "musique-minference-fixed_vs.jsonl": 35.28,
+    "narrativeqa-minference-fixed_vs.jsonl": 26.5,
+    "qasper-minference-fixed_vs.jsonl": 48.0,
+    "qmsum-minference-fixed_vs.jsonl": 23.83,
+    "repobench-p-minference-fixed_vs.jsonl": 57.88,
+    "samsum-minference-fixed_vs.jsonl": 44.11,
+    "trec-minference-fixed_vs.jsonl": 71.5,
+    "triviaqa-minference-fixed_vs.jsonl": 90.71,
+    "vcsum-minference-fixed_vs.jsonl": 14.27
+}
