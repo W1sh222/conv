@@ -132,11 +132,17 @@ for MAX_SEQ_LENGTH in "${SEQ_LENGTHS[@]}"; do
         SETTINGS_INFO+="fixed_vs_"
     elif [[ "${METRIC#--metric }" != "full" ]]; then
         if [[ -n ${STRIDE} ]]; then SETTINGS_INFO+="fuse_${STRIDE##* }_"; fi
-        if [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"; fi
+        if [[ -n ${RULER_SPARSE_TOP_P:-} ]]; then
+            SETTINGS_INFO+="topp_${RULER_SPARSE_TOP_P}_"
+        elif [[ -n ${THRESHOLD} && -z ${PRECISE_THRESHOLD:-} ]]; then
+            SETTINGS_INFO+="thresh_${THRESHOLD#--threshold }_"
+        fi
         if [[ "${METRIC#--metric }" == "flex" ]]; then
             SETTINGS_INFO+="gamma_${FLEX_GAMMA_ARG##* }_tau_${FLEX_TAU_ARG##* }_"
         else
-            SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
+            if [[ -z ${RULER_SPARSE_TOP_P:-} ]]; then
+                SETTINGS_INFO+="topk_${BLOCK_TOPK_RATIO##* }_"
+            fi
         fi
     fi
     

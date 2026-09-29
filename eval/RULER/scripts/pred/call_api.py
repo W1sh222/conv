@@ -221,16 +221,32 @@ if args.server_type == 'hf' or args.server_type == 'gemini':
     args.threads = 1
 
 if args.metric in ("conv", "xattn"):
-    if not (0.0 < args.block_topk_ratio <= 1.0):
+    # An explicit threshold selects the original top-p/threshold path.
+    # It must take precedence over the historical block_topk_ratio default,
+    # otherwise a --threshold run would silently remain in fixed-ratio mode.
+    if args.threshold is not None:
+        if not (0.0 < args.threshold <= 1.0):
+            raise ValueError(
+                "--threshold must be in (0, 1] for sparse top-p selection, "
+                f"got {args.threshold}"
+            )
+        args.block_topk_ratio = None
+        print(
+            f"[Block Selection] method={args.metric} mode=top_p "
+            f"threshold={args.threshold:.4f}",
+            flush=True,
+        )
+    elif not (0.0 < args.block_topk_ratio <= 1.0):
         raise ValueError(
             "--block_topk_ratio must be in (0, 1], "
             f"got {args.block_topk_ratio}"
         )
-    print(
-        f"[Block Selection] method={args.metric} mode=topk_ratio "
-        f"ratio={args.block_topk_ratio:.4f}",
-        flush=True,
-    )
+    else:
+        print(
+            f"[Block Selection] method={args.metric} mode=topk_ratio "
+            f"ratio={args.block_topk_ratio:.4f}",
+            flush=True,
+        )
 elif args.metric == "flex":
     print(
         f"[Block Selection] method=flex mode=original_gamma_tau "

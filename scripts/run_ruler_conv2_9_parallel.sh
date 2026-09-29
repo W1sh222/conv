@@ -7,6 +7,7 @@ set -euo pipefail
 #
 # Usage:
 #   bash scripts/run_ruler_conv2_9_parallel.sh --method conv --weight PATH --topk 0.7
+#   bash scripts/run_ruler_conv2_9_parallel.sh --method conv --weight PATH --topp 0.9
 #   bash scripts/run_ruler_conv2_9_parallel.sh --method flex --flex-gamma 0.96 --flex-tau 0.06
 #   bash scripts/run_ruler_conv2_9_parallel.sh --method minference
 #   bash scripts/run_ruler_conv2_9_parallel.sh PATH 0.7  # shorthand for Conv
@@ -20,6 +21,7 @@ Options:
   --method METHOD   conv, xattn, flex, minference, or full (default: conv)
   --weight PATH     Llama Conv .pt checkpoint (required for conv)
   --topk RATIO      block top-k ratio for conv/xattn (ignored by flex)
+  --topp VALUE      original threshold/top-p selector for conv/xattn; disables block top-k
   --flex-gamma X    original Flex attention-mass coverage (default: 0.96)
   --flex-tau X      original Flex JS-divergence threshold (default: 0.06)
   --minference-vertical N  MInference vertical budget (default: 1000)
@@ -35,6 +37,7 @@ EOF
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WEIGHT_PATH=""
 TOPK=""
+TOPP=""
 FLEX_GAMMA="${FLEX_GAMMA:-0.96}"
 FLEX_TAU="${FLEX_TAU:-0.06}"
 METHOD="conv"
@@ -86,6 +89,11 @@ while [[ $# -gt 0 ]]; do
     --topk|--block_topk_ratio)
       [[ $# -ge 2 ]] || usage
       TOPK="$2"
+      shift 2
+      ;;
+    --topp|--top_p|--sparse_top_p|--sparse-top-p)
+      [[ $# -ge 2 ]] || usage
+      TOPP="$2"
       shift 2
       ;;
     --flex-gamma|--flex_gamma)
@@ -154,6 +162,16 @@ if [[ "${METHOD}" == "conv" || "${METHOD}" == "xattn" ]]; then
     exit 2
   }
 fi
+if [[ -n "${TOPP}" ]]; then
+  [[ "${METHOD}" == "conv" || "${METHOD}" == "xattn" ]] || {
+    echo "--topp is supported only for method=conv or method=xattn" >&2
+    exit 2
+  }
+  awk "BEGIN { if (!(${TOPP} > 0 && ${TOPP} <= 1)) exit 1 }" || {
+    echo "topp must be in (0,1], got: ${TOPP}" >&2
+    exit 2
+  }
+fi
 if [[ "${METHOD}" == "conv" && "${WEIGHT_PATH}" != "initial_vertical_diag" && ! -f "${WEIGHT_PATH}" ]]; then
   echo "Llama Conv weight does not exist: ${WEIGHT_PATH}" >&2
   exit 1
@@ -198,6 +216,8 @@ echo "[parallel] method=${METHOD}"
 echo "[parallel] weight=${WEIGHT_PATH:-<not-used>}"
 if [[ "${METHOD}" == "flex" ]]; then
   echo "[parallel] flex_gamma=${FLEX_GAMMA} flex_tau=${FLEX_TAU} stride=<not-used> samples=${SAMPLES}"
+elif [[ -n "${TOPP}" ]]; then
+  echo "[parallel] sparse_selector=topp:${TOPP} stride=${STRIDE} samples=${SAMPLES}"
 else
   echo "[parallel] topk=${TOPK:-<not-used>} stride=${STRIDE} samples=${SAMPLES}"
 fi
@@ -216,6 +236,7 @@ for i in "${!RUNNERS[@]}"; do
     export MINFERENCE_SLASH_SIZE="${MINFERENCE_SLASH_SIZE}"
     export FLEX_GAMMA="${FLEX_GAMMA}"
     export FLEX_TAU="${FLEX_TAU}"
+    export RULER_SPARSE_TOP_P="${TOPP}"
     export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
     cd "${REPO_ROOT}/eval/RULER/scripts"
     RUN_ARGS=(
@@ -224,6 +245,9 @@ for i in "${!RUNNERS[@]}"; do
     )
     if [[ "${METHOD}" == "conv" || "${METHOD}" == "xattn" ]]; then
       RUN_ARGS+=(--block_topk_ratio "${TOPK}")
+    fi
+    if [[ -n "${TOPP}" ]]; then
+      RUN_ARGS+=(--threshold "${TOPP}")
     fi
     if [[ "${METHOD}" == "conv" ]]; then
       RUN_ARGS+=(--conv_weight_path "${WEIGHT_PATH}")
