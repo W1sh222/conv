@@ -7,6 +7,8 @@ figures/
 flash_attn_temp/
 output/
 .pptx-build/
+.acl_revision/
+.tmp/
 
 related_work/
 ft_scripts/sparse_ruler_qwen/logs/
