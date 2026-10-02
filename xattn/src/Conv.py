@@ -13,6 +13,7 @@ import os
 # Global caches to avoid repeated disk I/O / small tensor allocations.
 _CONV_WEIGHT_CACHE = {}
 _STATIC_PREFILL_TENSOR_CACHE = {}
+_CONV_KERNEL_SIZE_CACHE = {}
 
 
 # Default paths for conv kernel weights
@@ -22,6 +23,35 @@ _INITIAL_VERTICAL_DIAG_NAMES = {
     "initial_vertical_diag",
     "__initial_vertical_diag__",
 }
+
+
+def _infer_conv_kernel_size(weight_path=None, fallback: int = 7) -> int:
+    """Infer K from a checkpoint so ablation checkpoints do not use K=7.
+
+    The public prefill callers historically omitted ``conv_kernel_size`` and
+    therefore used the 7x7 default.  A learned checkpoint already contains
+    the authoritative spatial shape, so infer it when a path is supplied.
+    """
+    if weight_path is None:
+        return int(fallback)
+    normalized = str(weight_path).strip().lower()
+    if normalized in _INITIAL_VERTICAL_DIAG_NAMES:
+        return int(fallback)
+    cache_key = str(weight_path)
+    if cache_key in _CONV_KERNEL_SIZE_CACHE:
+        return _CONV_KERNEL_SIZE_CACHE[cache_key]
+    if not os.path.exists(weight_path):
+        return int(fallback)
+    weight = torch.load(weight_path, map_location="cpu", weights_only=True)
+    if not torch.is_tensor(weight) or weight.ndim < 2:
+        raise ValueError(f"Conv checkpoint must be a tensor with spatial dims: {weight_path}")
+    height, width = int(weight.shape[-2]), int(weight.shape[-1])
+    if height != width or height <= 0 or height % 2 == 0:
+        raise ValueError(
+            f"Conv checkpoint must have an odd square kernel, got {tuple(weight.shape)}"
+        )
+    _CONV_KERNEL_SIZE_CACHE[cache_key] = height
+    return height
 
 
 def _get_conv_weight(kernel_size=7, weight_path=None, device=None):
@@ -46,6 +76,9 @@ def _get_conv_weight(kernel_size=7, weight_path=None, device=None):
     explicit_weight_path = weight_path is not None
     if weight_path is None:
         weight_path = _DEFAULT_WEIGHT_PATH
+
+    if kernel_size is None:
+        kernel_size = _infer_conv_kernel_size(weight_path, fallback=7)
 
     cache_key = (str(weight_path), str(device))
     if cache_key in _CONV_WEIGHT_CACHE:
@@ -697,7 +730,7 @@ def conv_estimate(
     kdb: int = 1,
     keep_sink=False,
     keep_recent=False,
-    conv_kernel_size: int = 7,
+    conv_kernel_size: int | None = None,
     conv_weight_path=None,
     layer_idx=None,
     conv_safe_topk=False,
@@ -727,6 +760,8 @@ def conv_estimate(
     batch_size, num_kv_head, k_len, head_dim = key_states.shape
     batch_size, num_q_head, q_len, head_dim = query_states.shape
     assert num_q_head == num_kv_head
+    if conv_kernel_size is None:
+        conv_kernel_size = _infer_conv_kernel_size(conv_weight_path, fallback=7)
 
     if topk_ratio is not None:
         topk_ratio = float(topk_ratio)
@@ -1173,7 +1208,7 @@ def Conv_prefill(
     chunk_size=None,
     keep_sink=False,
     keep_recent=False,
-    conv_kernel_size=7,
+    conv_kernel_size=None,
     conv_weight_path=None,
     layer_idx=None,
     conv_safe_topk=False,
@@ -1200,6 +1235,8 @@ def Conv_prefill(
     # print("conv_kernel_size:", conv_kernel_size)
     batch_size, num_heads, k_len, head_dim = key_states.shape
     _, _, q_len, _ = query_states.shape
+    if conv_kernel_size is None:
+        conv_kernel_size = _infer_conv_kernel_size(conv_weight_path, fallback=7)
 
     q_block_num = (q_len + block_size - 1) // block_size
     k_block_num = (k_len + block_size - 1) // block_size

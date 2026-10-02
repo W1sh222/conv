@@ -180,6 +180,18 @@ def extract_llama_qkv(model, hidden_states, position_ids, layer_idx: int):
 
 def load_or_init_weight(init_path: Optional[str], num_layers: int, num_heads: int, kernel_size: int) -> torch.Tensor:
     if str(init_path or "").strip().lower() in {
+        "scratch_vertical_diag",
+        "initial_vertical_diag",
+    }:
+        print(
+            f"[init] scratch vertical+diagonal kernel ({kernel_size}x{kernel_size})"
+        )
+        return make_layer_head_kernel(
+            num_layers,
+            num_heads,
+            kernel_size,
+        ).float().contiguous()
+    if str(init_path or "").strip().lower() in {
         "identity",
         "scratch_identity",
         "no_conv",
