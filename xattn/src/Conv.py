@@ -7,6 +7,7 @@ from xattn.src.kernels_conv_no_spaced_sampling import (
     softmax_fuse_block_sum,
 )
 from block_sparse_attn import block_sparse_attn_func
+from xattn.src.conv_topp import get_conv_topp_policy, select_conv_topp_mask
 import os
 
 
@@ -746,9 +747,9 @@ def conv_estimate(
        (no antidiagonal scoring trick).
     2. Applies 2D convolution (kernel=conv_kernel_size, replicate padding) on
        the full [q_blocks, k_blocks] importance map to smooth scores.
-    3. Uses the smoothed scores for block selection via the same chunk-wise
-       find_blocks_chunked schedule as xattn_estimate, so sparsity/kept-block
-       counts are as aligned as possible under the same threshold.
+    3. Top-p selects cumulative causal positive mass over real blocks. Set
+       CONV_TOPP_SELECTOR=legacy to reproduce the original signed-sum selector.
+       Fixed-ratio/fixed-count Top-k paths retain their original behavior.
 
     Args:
         conv_weight_path: optional path to .pt file with conv weight (1x1xKxK)
@@ -1035,6 +1036,23 @@ def conv_estimate(
         posinf=1e4,
         neginf=-1e4,
     )
+
+    # Corrected Top-p uses real blocks and nonnegative, already causal mass.
+    # Keep Top-k and the legacy reproduction branch exactly as before.
+    topp_policy = None
+    if topk_ratio is None and fixed_topk is None and not conv_safe_topk:
+        topp_policy = get_conv_topp_policy()
+    if topp_policy == "positive":
+        q_real_blocks = (q_len + block_size - 1) // block_size
+        k_real_blocks = (k_len + block_size - 1) // block_size
+        simple_masks = select_conv_topp_mask(
+            attn_sums_smoothed, threshold, q_real_blocks, k_real_blocks,
+            num_blocks_per_chunk, causal=causal,
+            force_sink=causal or keep_sink, force_diagonal=causal or keep_recent,
+        )
+        # Already masked using real dimensions; padded-offset postprocessing
+        # below belongs only to the unchanged legacy/Top-k paths.
+        return attn_sums, simple_masks
 
     # Selection priority:
     #   topk_ratio > fixed_topk > conv_safe_topk > threshold/Top-P

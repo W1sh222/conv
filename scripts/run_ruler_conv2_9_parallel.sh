@@ -201,6 +201,21 @@ elif [[ "${METHOD}" == "conv" ]]; then
 else
   WEIGHT_TAG="${METHOD}"
 fi
+# Corrected Conv Top-p must not resume predictions made by the old selector.
+if [[ "${METHOD}" == "conv" && -n "${TOPP}" ]]; then
+  export CONV_TOPP_SELECTOR="${CONV_TOPP_SELECTOR:-positive}"
+  case "${CONV_TOPP_SELECTOR}" in
+    positive)
+      case "${WEIGHT_TAG}" in
+        *_positive_mass_v1) ;;
+        *) WEIGHT_TAG="${WEIGHT_TAG}_positive_mass_v1" ;;
+      esac
+      LOG_DIR="${LOG_DIR}/positive_mass_v1"
+      ;;
+    legacy) ;;
+    *) echo "CONV_TOPP_SELECTOR must be positive or legacy" >&2; exit 2 ;;
+  esac
+fi
 mkdir -p "${LOG_DIR}"
 
 RUNNERS=(

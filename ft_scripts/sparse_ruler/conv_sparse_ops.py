@@ -2,6 +2,7 @@ import math
 import inspect
 import torch
 import torch.nn.functional as F
+from xattn.src.conv_topp import get_conv_topp_policy, select_conv_topp_mask
 
 try:
     from xattn.src.utils import find_blocks_chunked
@@ -444,11 +445,17 @@ def make_inference_chunked_block_mask(
     """
     Match Conv_prefill block selection during training.
 
-    Inference uses either its fixed causal-visible top-k ratio selector or
-    find_blocks_chunked on each query chunk of the FULL padded smoothed score
-    map, then crops to real q/k blocks. `topk_ratio` takes priority over the
-    cumulative-score `threshold`, matching Conv.py.
+    Top-k preserves the original ratio selector. Corrected Top-p selects
+    causal positive mass on real blocks; CONV_TOPP_SELECTOR=legacy reproduces
+    the padded signed-sum schedule. `topk_ratio` takes priority, matching Conv.py.
     """
+    if topk_ratio is None and get_conv_topp_policy() == "positive":
+        mask = select_conv_topp_mask(
+            energy_full, threshold, q_real_blocks, k_real_blocks,
+            max(1, int(num_blocks_per_chunk)), causal=causal,
+            force_sink=causal, force_diagonal=True,
+        )
+        return mask[:, :, :q_real_blocks, :k_real_blocks].contiguous()
     if find_blocks_chunked is None:
         raise ImportError("find_blocks_chunked is required for inference-matched training.")
 

@@ -133,6 +133,21 @@ if [[ -z "${EXPLICIT_RESULT_TAG}" && -z "${LONGBENCH_RESULT_TAG:-}" && -n "${TOP
   OUTPUT_TAG="${OUTPUT_TAG}_topp_${TOP_P_TAG}"
 fi
 
+# Include the selector version even when an explicit result tag was supplied.
+if [[ "${METHOD}" == "conv" && -n "${TOP_P_VALUE}" ]]; then
+  export CONV_TOPP_SELECTOR="${CONV_TOPP_SELECTOR:-positive}"
+  case "${CONV_TOPP_SELECTOR}" in
+    positive)
+      case "${OUTPUT_TAG}" in
+        *_positive_mass_v1) ;;
+        *) OUTPUT_TAG="${OUTPUT_TAG}_positive_mass_v1" ;;
+      esac
+      ;;
+    legacy) ;;
+    *) echo "CONV_TOPP_SELECTOR must be positive or legacy" >&2; exit 2 ;;
+  esac
+fi
+
 OUTPUT_TAG_ARGS=()
 RESULTS_SUBDIR="${METHOD}"
 if [[ -n "${OUTPUT_TAG}" ]]; then
@@ -149,8 +164,8 @@ for TASK in ${TASKS}; do
     "${MODEL_PATH}" "${TASK}" "${METHOD}" \
     --stride "${STRIDE_VALUE}" \
     --block_topk_ratio "${TOPK_VALUE}" \
-    "${OUTPUT_TAG_ARGS[@]}" \
-    "${EXTRA_ARGS[@]}"
+    "${EXTRA_ARGS[@]}" \
+    "${OUTPUT_TAG_ARGS[@]}"
 done
 
 MODEL_OUTPUT_NAME="$(basename "${MODEL_PATH}")"

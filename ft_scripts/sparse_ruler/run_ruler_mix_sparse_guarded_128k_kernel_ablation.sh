@@ -19,6 +19,78 @@ if [[ "${KERNEL_SIZE}" != "5" && "${KERNEL_SIZE}" != "9" ]]; then
   exit 2
 fi
 
+# Command-line overrides are intentionally accepted after the .sh path.  The
+# environment-variable form remains supported for compatibility, but users
+# do not need export statements anymore.
+REBUILD_DATA="${REBUILD_DATA:-0}"
+REBUILD_CACHE="${REBUILD_CACHE:-0}"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --rebuild-data)
+      REBUILD_DATA=1
+      shift
+      ;;
+    --rebuild-cache)
+      REBUILD_CACHE=1
+      shift
+      ;;
+    --data-samples)
+      [[ $# -ge 2 ]] || { echo "--data-samples requires a value" >&2; exit 2; }
+      DATA_SAMPLES="$2"
+      shift 2
+      ;;
+    --steps)
+      [[ $# -ge 2 ]] || { echo "--steps requires a value" >&2; exit 2; }
+      TRAIN_STEPS="$2"
+      shift 2
+      ;;
+    --lr)
+      [[ $# -ge 2 ]] || { echo "--lr requires a value" >&2; exit 2; }
+      LR="$2"
+      shift 2
+      ;;
+    --save-steps)
+      [[ $# -ge 2 ]] || { echo "--save-steps requires a value" >&2; exit 2; }
+      SAVE_STEPS="$2"
+      shift 2
+      ;;
+    --layers-per-sample)
+      [[ $# -ge 2 ]] || { echo "--layers-per-sample requires a value" >&2; exit 2; }
+      LAYERS_PER_SAMPLE="$2"
+      shift 2
+      ;;
+    --out)
+      [[ $# -ge 2 ]] || { echo "--out requires a path" >&2; exit 2; }
+      OUT_PATH="$2"
+      shift 2
+      ;;
+    --cache-dir)
+      [[ $# -ge 2 ]] || { echo "--cache-dir requires a path" >&2; exit 2; }
+      DATASET_CACHE_DIR="$2"
+      shift 2
+      ;;
+    -h|--help)
+      cat <<'USAGE'
+Usage: bash run_ruler_mix_sparse_guarded_128k_kernel{5,9}_ablation.sh [options]
+  --rebuild-data       rebuild the shared JSONL dataset
+  --rebuild-cache      remove this run's exact Arrow cache directory
+  --data-samples N     dataset size (default: 10000)
+  --steps N             training steps (default: 4000)
+  --lr X               learning rate
+  --save-steps N        checkpoint interval
+  --layers-per-sample N
+  --out PATH            output checkpoint path
+  --cache-dir PATH      dataset cache directory
+USAGE
+      exit 0
+      ;;
+    *)
+      echo "unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
 MODEL_PATH="${MODEL_PATH:-/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct}"
 NOLIMA_ROOT="${NOLIMA_ROOT:-/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/dllm/data/NoLiMa}"
 XATTN_ROOT="${XATTN_ROOT:-/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn}"
@@ -40,8 +112,20 @@ BLOCK_TOPK_RATIO=0.7
 
 SYNTH_DATA="${SYNTH_DATA:-${NOLIMA_ROOT}/synth_train/ruler_mix_sparse_t07_96k128k_kernel_ablation_${DATA_SAMPLES}.jsonl}"
 OUT_PATH="${OUT_PATH:-${WEIGHT_DIR}/conv_kernel_${KERNEL_SIZE}x${KERNEL_SIZE}_ruler_mix_sparse_guarded_long_t07_96k128k_from_scratch_step4000_${MODEL_PRECISION}.pt}"
+# Keep Arrow caches isolated per kernel.  The previous failed run left a
+# truncated cache; reusing it causes pyarrow's "message body" read error even
+# after the JSONL has been rebuilt.  Set REBUILD_CACHE=1 to clear this exact
+# run-specific directory when recovering from another interrupted import.
+DATASET_CACHE_DIR="${DATASET_CACHE_DIR:-${WEIGHT_DIR}/hf_datasets_cache_k${KERNEL_SIZE}_v2}"
+if [[ "${REBUILD_CACHE:-0}" == "1" ]]; then
+  case "${DATASET_CACHE_DIR}" in
+    "${WEIGHT_DIR}"/*) rm -rf -- "${DATASET_CACHE_DIR}" ;;
+    *) echo "refusing to remove cache outside WEIGHT_DIR: ${DATASET_CACHE_DIR}" >&2; exit 2 ;;
+  esac
+fi
+export HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-${DATASET_CACHE_DIR}}"
 LOG_DIR="${LOG_DIR:-./ft_scripts/sparse_ruler/logs/kernel${KERNEL_SIZE}_ablation}"
-mkdir -p "${LOG_DIR}" "${WEIGHT_DIR}" "$(dirname "${SYNTH_DATA}")" "$(dirname "${OUT_PATH}")"
+mkdir -p "${LOG_DIR}" "${WEIGHT_DIR}" "$(dirname "${SYNTH_DATA}")" "$(dirname "${OUT_PATH}")" "${DATASET_CACHE_DIR}"
 LOG_FILE="${LOG_FILE:-${LOG_DIR}/${EXPERIMENT_NAME}_${MODEL_PRECISION}.log}"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
@@ -50,6 +134,7 @@ echo "EXPERIMENT_NAME=${EXPERIMENT_NAME}"
 echo "MODEL_PATH=${MODEL_PATH}"
 echo "INIT_PATH=${INIT_PATH}"
 echo "SYNTH_DATA=${SYNTH_DATA}"
+echo "DATASET_CACHE_DIR=${DATASET_CACHE_DIR}"
 echo "OUT_PATH=${OUT_PATH}"
 echo "TRAIN_STEPS=${TRAIN_STEPS} LR=${LR} WARMUP_STEPS=${WARMUP_STEPS}"
 echo "THRESHOLD=${THRESHOLD} BLOCK_TOPK_RATIO=${BLOCK_TOPK_RATIO}"
@@ -80,9 +165,17 @@ if [[ "${REBUILD_DATA:-0}" == "1" || "${CURRENT_SAMPLES}" -ne "${DATA_SAMPLES}" 
 fi
 test "$(wc -l < "${SYNTH_DATA}")" -eq "${DATA_SAMPLES}" || { echo "dataset integrity failure"; exit 1; }
 
+# Validate every JSON record before datasets/pyarrow sees it.  This catches a
+# truncated final line or malformed record independently of the Arrow cache.
+python ft_scripts/sparse_ruler/check_jsonl_integrity.py \
+  --path "${SYNTH_DATA}" \
+  --expected "${DATA_SAMPLES}"
+
 python ft_scripts/sparse_ruler/train_conv_kernel_guarded_long.py \
   --model "${MODEL_PATH}" \
   --data "${SYNTH_DATA}" \
+  --cache_dir "${DATASET_CACHE_DIR}" \
+  --lazy_jsonl \
   --out "${OUT_PATH}" \
   --init_path "${INIT_PATH}" \
   --model_type llama \

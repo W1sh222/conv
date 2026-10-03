@@ -65,6 +65,47 @@ class _StopFrozenForward(Exception):
     pass
 
 
+class LazyJsonlDataset:
+    """Random-access JSONL reader that never builds an Arrow cache.
+
+    Long-context RULER rows are very large.  The Hugging Face JSON builder can
+    create a multi-gigabyte Arrow file and, on a network filesystem, leave a
+    truncated shard that later fails with a pyarrow ``message body`` error.
+    Keeping byte offsets and decoding only the selected row avoids that entire
+    failure mode while preserving the indexed access used by the trainer.
+    """
+
+    def __init__(self, path: str) -> None:
+        self.path = str(path)
+        self.offsets: List[int] = []
+        with open(self.path, "rb") as handle:
+            while True:
+                offset = handle.tell()
+                line = handle.readline()
+                if not line:
+                    break
+                if line.strip():
+                    self.offsets.append(offset)
+        self._handle = None
+
+    def __len__(self) -> int:
+        return len(self.offsets)
+
+    def __getitem__(self, index: int) -> Dict[str, Any]:
+        if index < 0:
+            index += len(self.offsets)
+        if index < 0 or index >= len(self.offsets):
+            raise IndexError(index)
+        if self._handle is None:
+            self._handle = open(self.path, "rb")
+        self._handle.seek(self.offsets[index])
+        raw = self._handle.readline()
+        record = json.loads(raw.decode("utf-8"))
+        if not isinstance(record, dict):
+            raise ValueError(f"JSONL record {index} is not an object")
+        return record
+
+
 def format_prompt_only(example: Dict[str, Any], tokenizer) -> str:
     """Match evaluation: no assistant answer and no synthetic marker tokens."""
     if example.get("messages") is not None:
@@ -638,6 +679,19 @@ def main(default_model_type: str = "llama") -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
     parser.add_argument("--data", required=True)
+    parser.add_argument(
+        "--cache_dir",
+        default="",
+        help=(
+            "Optional Hugging Face datasets cache directory. Use a fresh, "
+            "run-specific directory after an interrupted/corrupt JSONL load."
+        ),
+    )
+    parser.add_argument(
+        "--lazy_jsonl",
+        action="store_true",
+        help="Use indexed JSONL reads instead of the Hugging Face Arrow builder.",
+    )
     parser.add_argument("--out", required=True)
     parser.add_argument("--init_path", required=True)
     parser.add_argument("--resume_state", default="")
@@ -805,7 +859,23 @@ def main(default_model_type: str = "llama") -> None:
     )
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    dataset = load_dataset("json", data_files=args.data, split="train")
+    # A failed/multi-process JSONL import can leave a truncated Arrow cache.
+    # Long-context ablations can bypass Arrow entirely.  For older invocations
+    # that do not request lazy mode, retain the normal loader but fall back to
+    # the same indexed reader if pyarrow reports a truncated shard.
+    if args.lazy_jsonl:
+        dataset = LazyJsonlDataset(args.data)
+        print("[data] using indexed JSONL reader (Arrow cache disabled)")
+    else:
+        dataset_kwargs = {"data_files": args.data, "split": "train"}
+        if args.cache_dir:
+            os.makedirs(args.cache_dir, exist_ok=True)
+            dataset_kwargs["cache_dir"] = args.cache_dir
+        try:
+            dataset = load_dataset("json", **dataset_kwargs)
+        except (OSError, RuntimeError) as exc:
+            print(f"[data] Arrow load failed ({exc}); falling back to indexed JSONL")
+            dataset = LazyJsonlDataset(args.data)
     print(f"dataset size: {len(dataset)}")
     if len(dataset) == 0:
         raise RuntimeError("empty dataset")
