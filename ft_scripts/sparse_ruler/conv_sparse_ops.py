@@ -574,24 +574,34 @@ def normalize_layer_head_weight(conv_weight, num_heads: int):
     """
     训练侧每一步传进来的 conv_weight 推荐 shape:
 
-        [heads, 7, 7]
+        [heads, K, K]
 
     兼容：
-        [heads, 7, 7]
-        [heads, 1, 7, 7]
-        [1, 1, 7, 7]
-        [7, 7]
+        [heads, K, K]
+        [heads, 1, K, K]
+        [1, 1, K, K]
+        [K, K]
 
     返回 grouped conv2d 用的：
-        [heads, 1, 7, 7]
+        [heads, 1, K, K]
     """
+    if conv_weight.dim() < 2:
+        raise ValueError(f"Unsupported conv_weight shape: {tuple(conv_weight.shape)}")
+    kernel_h = int(conv_weight.shape[-2])
+    kernel_w = int(conv_weight.shape[-1])
+    if kernel_h != kernel_w or kernel_h <= 0 or kernel_h % 2 == 0:
+        raise ValueError(
+            "conv_weight must have an odd square spatial shape, "
+            f"got {tuple(conv_weight.shape)}"
+        )
+
     if conv_weight.dim() == 2:
         conv_weight = conv_weight[None, None, :, :].expand(
-            num_heads, 1, 7, 7
+            num_heads, 1, kernel_h, kernel_w
         )
 
     elif conv_weight.dim() == 3:
-        # [H, 7, 7]
+        # [H, K, K]
         if conv_weight.shape[0] != num_heads:
             raise ValueError(
                 f"conv_weight heads={conv_weight.shape[0]} != num_heads={num_heads}"
@@ -599,9 +609,9 @@ def normalize_layer_head_weight(conv_weight, num_heads: int):
         conv_weight = conv_weight[:, None, :, :]
 
     elif conv_weight.dim() == 4:
-        # [H, 1, 7, 7] or [1, 1, 7, 7]
+        # [H, 1, K, K] or [1, 1, K, K]
         if conv_weight.shape[0] == 1:
-            conv_weight = conv_weight.expand(num_heads, 1, 7, 7)
+            conv_weight = conv_weight.expand(num_heads, 1, kernel_h, kernel_w)
         elif conv_weight.shape[0] != num_heads:
             raise ValueError(
                 f"conv_weight shape {tuple(conv_weight.shape)} "
@@ -617,7 +627,7 @@ def normalize_layer_head_weight(conv_weight, num_heads: int):
 def apply_conv_energy(block_scores, conv_weight):
     """
     block_scores: [1, heads, q_blocks, k_blocks]
-    conv_weight:  [heads, 7, 7]
+    conv_weight:  [heads, K, K]
 
     return:
         energy: [1, heads, q_blocks, k_blocks]
@@ -632,7 +642,10 @@ def apply_conv_energy(block_scores, conv_weight):
     if b != 1:
         weight = weight.repeat(b, 1, 1, 1)
 
-    pad = 3
+    # Keep the smoothed map exactly [qb, kb] for every odd kernel size.
+    # The previous hard-coded pad=3 produced qb+2/kb+2 for K=5 and
+    # qb-2/kb-2 for K=9, causing the final reshape to fail.
+    pad = int(weight.shape[-1]) // 2
     x = F.pad(x, (pad, pad, pad, pad), mode="replicate")
 
     energy = F.conv2d(
@@ -642,6 +655,13 @@ def apply_conv_energy(block_scores, conv_weight):
         padding=0,
         groups=b * h,
     )
+
+    if tuple(energy.shape[-2:]) != (qb, kb):
+        raise RuntimeError(
+            "apply_conv_energy changed the block map shape: "
+            f"input={(qb, kb)} output={tuple(energy.shape[-2:])} "
+            f"kernel={tuple(weight.shape[-2:])} pad={pad}"
+        )
 
     return energy.reshape(b, h, qb, kb)
 
