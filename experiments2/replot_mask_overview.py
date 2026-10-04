@@ -65,14 +65,16 @@ def draw(input_dir, output_png, dpi=300, font_scale=1.0,
     head = args.get("head", "?")
     title = f"Layer {layer} / Head {head}"
     scale = float(font_scale)
+    
+    # 【修改点 1】：大幅调大所有基础字体数值
     plt.rcParams.update({
         "font.family": "sans-serif",
         "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
-        "font.size": 14 * scale,
-        "axes.labelsize": 18 * scale,
-        "xtick.labelsize": 18 * scale,
-        "ytick.labelsize": 18 * scale,
-        "legend.fontsize": 13 * scale,
+        "font.size": 20 * scale,          # 原 14 (全局默认)
+        "axes.labelsize": 28 * scale,     # 原 18 (X/Y轴标签: Key block / Query block)
+        "xtick.labelsize": 24 * scale,    # 原 18 (X轴刻度数字)
+        "ytick.labelsize": 24 * scale,    # 原 18 (Y轴刻度数字)
+        "legend.fontsize": 20 * scale,    # 原 13 (图例文字: Selected 等)
         "axes.linewidth": 0.8,
         "xtick.major.width": 0.8,
         "ytick.major.width": 0.8,
@@ -87,10 +89,17 @@ def draw(input_dir, output_png, dpi=300, font_scale=1.0,
     fig, ax = plt.subplots(figsize=(9 * canvas_scale, 9 * canvas_scale))
     ax.imshow(image, cmap=ListedColormap([white, blue, gray]), vmin=0, vmax=2,
               interpolation="nearest", origin="upper")
-    ax.set_xlabel("Key block", labelpad=9 * scale)
-    ax.set_ylabel("Query block", labelpad=9 * scale)
-    ax.set_title(title, fontsize=18 * scale, pad=12 * scale)
-    ax.tick_params(direction="out", length=4, pad=5 * scale)
+              
+    # 【修改点 2】：增加 labelpad 防止大字体被边缘裁剪
+    ax.set_xlabel("Key block", labelpad=15 * scale)
+    ax.set_ylabel("Query block", labelpad=15 * scale)
+    
+    # 【修改点 3】：大幅调大主标题字体和顶部间距
+    ax.set_title(title, fontsize=32 * scale, pad=20 * scale)
+    
+    # 增加刻度数字与坐标轴的间距
+    ax.tick_params(direction="out", length=4, pad=8 * scale)
+    
     handles = [
         Patch(facecolor=blue, edgecolor="#777777", linewidth=0.7, label="Selected"),
         Patch(facecolor=white, edgecolor="#777777", linewidth=0.7, label="Unselected"),
