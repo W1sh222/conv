@@ -65,6 +65,15 @@ python experiments2/replot_observation2.py \
 
 脚本只读取 `candidate_context.csv`、`matched_pairs.csv` 和 `summary.json`，不会重新运行模型，也不会改变任何 loss 或匹配结果。如果需要直接覆盖原文件，将 `--output` 改为原来的 `observation2.png` 即可。
 
+论文版本重绘默认保存到仓库的 `acl_revision/Figs/observe2.png`，并输出同名 PDF、SVG 和面板对齐记录。默认使用浅蓝/橙色、183 mm 整栏宽度、图外对齐图例和 600 dpi；所有候选和匹配对均保留。
+
+```bash
+python experiments2/replot_observation2.py \
+  --input output/ruler_observation/vt_32k_seed42_layers/layer_14/observation2_line6
+```
+
+`--font-scale 1.2` 同时放大字体和画布；`--point-size 30` 控制候选点面积。可用 `--output` 指定另一份 PNG，而不覆盖论文图。
+
 如果需要重画原始块选择图，可使用专用脚本。它只显示蓝色的 selected blocks、白色的 unselected blocks 和灰色的 causally masked blocks，自动去除橙色/绿色替换标记以及 query block 干预内容：
 
 ```bash
@@ -73,7 +82,19 @@ python experiments2/replot_mask_overview.py \
   --output /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_layers/layer_14/swap/mask_overview_original.png
 ```
 
-标题只保留 layer 和 head，不再显示 query block；同时输出同名 PDF。
+标题只保留 layer 和 head，不再显示 query block；同时输出同名 PDF 和可编辑 SVG。
+图例默认纵向置于右上角的灰色因果屏蔽区域，色块具有统一边框。
+`--font-scale 1.4` 可放大所有字体；画布会随大字号扩展。
+如果希望图例位于图下方，追加 `--legend-location bottom`，脚本会为图例和坐标轴标签预留间距，过宽时改为纵向排列。
+
+重绘论文中的 mask 图：
+
+```bash
+python experiments2/replot_mask_overview.py \
+  --input output/ruler_observation/vt_32k_seed42_layers/layer_14/swap \
+  --output acl_revision/Figs/mask.png \
+  --font-scale 1.4 --dpi 300
+```
 
 只有当高邻域候选的平均 utility 更高，并且配对检验与控制中心得分后的残差关系方向一致时，这组数据才支持 Observation 2。如果结果不成立，脚本仍完整保存结果，不筛选有利候选。
 

@@ -9,6 +9,7 @@ output/
 pptx-build/
 acl_revision/
 tmp/
+.sheet_work/
 
 related_work/
 ft_scripts/sparse_ruler_qwen/logs/
