@@ -146,7 +146,10 @@ test -d "${NOLIMA_ROOT}" || { echo "NoLiMa directory does not exist: ${NOLIMA_RO
 CURRENT_SAMPLES=0
 if [[ -f "${SYNTH_DATA}" ]]; then CURRENT_SAMPLES="$(wc -l < "${SYNTH_DATA}")"; fi
 if [[ "${REBUILD_DATA:-0}" == "1" || "${CURRENT_SAMPLES}" -ne "${DATA_SAMPLES}" ]]; then
-  BUILD_PATH="${SYNTH_DATA}.building"
+  # K=5 and K=9 may be launched concurrently.  Never let them share the
+  # temporary builder path: one process moving/deleting .building used to make
+  # the other process fail at its line-count check.
+  BUILD_PATH="${SYNTH_DATA}.kernel${KERNEL_SIZE}.building"
   python ft_scripts/sparse_ruler/build_ruler_mix_sft.py \
     --model "${MODEL_PATH}" \
     --nolima_root "${NOLIMA_ROOT}" \
