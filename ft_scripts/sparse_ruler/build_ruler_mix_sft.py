@@ -440,13 +440,25 @@ def build_word_aggregation(
     sample_id: int,
     task_type: str,
     pos_mix: Dict[str, float],
+    cwe_num_words: int = 3,
 ) -> Dict[str, Any]:
     vocab = [rand_code_word(rng) for _ in range(80)]
-    top_words = [rand_code_word(rng) for _ in range(3)]
+    word_count = cwe_num_words if task_type == "cwe" else 3
+    if not 1 <= word_count <= 20:
+        raise ValueError("cwe_num_words must be in [1,20]")
+    top_words = []
+    while len(top_words) < word_count:
+        word = rand_code_word(rng)
+        if word not in vocab and word not in top_words:
+            top_words.append(word)
     if task_type == "cwe":
         # common vs uncommon: common words repeat heavily.
-        freqs = {top_words[0]: 36, top_words[1]: 32, top_words[2]: 28}
-        question = "Which three common coded words appear repeatedly in the coded text?"
+        if word_count == 3:
+            freqs = {top_words[0]: 36, top_words[1]: 32, top_words[2]: 28}
+            question = "Which three common coded words appear repeatedly in the coded text?"
+        else:
+            freqs = {word: 64 - 2 * i for i, word in enumerate(top_words)}
+            question = f"What are the {word_count} most common coded words in the text?"
     else:
         # fwe: explicit top-frequency task.
         freqs = {top_words[0]: 40, top_words[1]: 30, top_words[2]: 24}
@@ -538,6 +550,7 @@ def build_task(
     task_type: str,
     num_distractors: int,
     pos_mix: Dict[str, float],
+    cwe_num_words: int = 3,
 ) -> Dict[str, Any]:
     if task_type in {"niah_single_1", "niah_single_2", "niah_single_3"}:
         return build_niah_single(rng, sample_id, task_type, num_distractors, pos_mix)
@@ -550,7 +563,7 @@ def build_task(
     if task_type == "vt":
         return build_vt(rng, sample_id, pos_mix)
     if task_type in {"cwe", "fwe"}:
-        return build_word_aggregation(rng, sample_id, task_type, pos_mix)
+        return build_word_aggregation(rng, sample_id, task_type, pos_mix, cwe_num_words)
     if task_type in {"qa_1", "qa_2"}:
         return build_qa(rng, sample_id, task_type, pos_mix)
     if task_type == "dense_general":
@@ -571,6 +584,8 @@ def main() -> None:
     parser.add_argument("--min_seq_length", type=int, default=4096)
     parser.add_argument("--max_seq_length", type=int, default=9448)
     parser.add_argument("--num_distractor_needles", type=int, default=32)
+    parser.add_argument("--cwe_num_words", type=int, default=3,
+                        help="Use 10 for RULER-style CWE; default retains the older three-word surrogate")
     parser.add_argument("--position_mix", default="uniform:0.55,edge:0.25,bimodal:0.20")
     parser.add_argument(
         "--task_mix",
@@ -622,6 +637,7 @@ def main() -> None:
                 task_type=task_type,
                 num_distractors=args.num_distractor_needles,
                 pos_mix=pos_mix,
+                cwe_num_words=args.cwe_num_words,
             )
             context = insert_records_into_base(base_text, spec["records"])
             messages = make_messages(context, spec["question"], spec["answer"])

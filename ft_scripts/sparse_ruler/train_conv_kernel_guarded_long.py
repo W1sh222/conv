@@ -59,6 +59,7 @@ from model_adapter_451 import (  # type: ignore  # noqa: E402
     extract_qk_451,
     validate_model_451,
 )
+from continuation_losses import row_distribution, distribution_kl, anchor_replay_loss
 
 
 class _StopFrozenForward(Exception):
@@ -638,7 +639,7 @@ def load_frozen_model(
     return model
 
 
-def save_state(path, step, conv, optimizer, ema):
+def save_state(path, step, conv, optimizer, ema, control=None):
     state_path = path.replace(".pt", "_train_state.pt")
     torch.save(
         {
@@ -650,6 +651,7 @@ def save_state(path, step, conv, optimizer, ema):
             "weight_min": conv.weight_min,
             "weight_max": conv.weight_max,
             "bounded_delta_alpha": conv.alpha,
+            "continuation_control": control,
         },
         state_path,
     )
@@ -695,6 +697,14 @@ def main(default_model_type: str = "llama") -> None:
     parser.add_argument("--out", required=True)
     parser.add_argument("--init_path", required=True)
     parser.add_argument("--resume_state", default="")
+    parser.add_argument("--replay_data", default="", help="Separate training JSONL, never benchmark evaluation examples.")
+    parser.add_argument("--replay_every", type=int, default=4, help="One replay update every N updates.")
+    parser.add_argument("--replay_min_seq_length", type=int, default=8192)
+    parser.add_argument("--replay_max_seq_length", type=int, default=65536)
+    parser.add_argument("--replay_anchor_weight", type=float, default=0.0)
+    parser.add_argument("--kernel_anchor_weight", type=float, default=0.0)
+    parser.add_argument("--positive_teacher_weight", type=float, default=0.0,
+                        help="Additional teacher KL on the corrected ReLU-positive score distribution.")
     parser.add_argument(
         "--model_type",
         choices=["llama", "qwen3"],
@@ -789,6 +799,14 @@ def main(default_model_type: str = "llama") -> None:
     parser.add_argument("--save_steps", type=int, default=250)
     args = parser.parse_args()
 
+    if args.replay_every < 2 or not 0 < args.replay_min_seq_length <= args.replay_max_seq_length:
+        raise ValueError("Replay requires replay_every>=2 and valid length bounds")
+    for name in ("replay_anchor_weight", "kernel_anchor_weight", "positive_teacher_weight"):
+        if not math.isfinite(getattr(args, name)) or getattr(args, name) < 0:
+            raise ValueError(f"{name} must be finite and non-negative")
+    if args.replay_anchor_weight and not args.replay_data:
+        raise ValueError("replay_anchor_weight requires replay_data")
+
     if args.block_size != 128:
         raise ValueError("inference requires block_size=128")
     if args.rope_factor <= 0.0:
@@ -879,6 +897,9 @@ def main(default_model_type: str = "llama") -> None:
     print(f"dataset size: {len(dataset)}")
     if len(dataset) == 0:
         raise RuntimeError("empty dataset")
+    replay_dataset = LazyJsonlDataset(args.replay_data) if args.replay_data else None
+    if replay_dataset is not None and not len(replay_dataset):
+        raise ValueError("empty replay dataset")
     model = load_frozen_model(
         args.model,
         args.model_precision,
@@ -953,6 +974,29 @@ def main(default_model_type: str = "llama") -> None:
     running: Dict[str, float] = {}
     running_count = 0
     skipped_length = 0
+    replay_indices = list(range(len(replay_dataset))) if replay_dataset is not None else []
+    rng.shuffle(replay_indices)
+    replay_ptr = 0
+    signature = {name: value for name, value in vars(args).items()
+                 if name not in {"resume_state", "cache_dir", "log_steps", "save_steps"}}
+    signature.update(data_count=len(dataset), replay_count=len(replay_indices))
+    if args.resume_state and replay_dataset is not None:
+        control = state.get("continuation_control")
+        if not control or control["signature"] != signature:
+            raise ValueError("Replay continuation state/config mismatch; use this run's own state and unchanged settings")
+        indices, data_ptr = control["indices"], control["data_ptr"]
+        replay_indices, replay_ptr = control["replay_indices"], control["replay_ptr"]
+        layer_queue = control["layer_queue"]
+        rng.setstate(control["rng_state"])
+
+    def control_state():
+        return dict(signature=signature, indices=indices, data_ptr=data_ptr,
+                    replay_indices=replay_indices, replay_ptr=replay_ptr,
+                    layer_queue=layer_queue, rng_state=rng.getstate())
+
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out.replace('.pt', '_config.json')).write_text(
+        json.dumps(vars(args), indent=2) + '\n', encoding='utf-8')
 
     for step in range(start_step, args.steps + 1):
         step_lr = learning_rate_for_step(
@@ -967,19 +1011,30 @@ def main(default_model_type: str = "llama") -> None:
             param_group["lr"] = step_lr
         completed = False
         attempts_for_step = 0
+        is_replay = replay_dataset is not None and step % args.replay_every == 0
+        active_dataset = replay_dataset if is_replay else dataset
+        length_min = args.replay_min_seq_length if is_replay else args.min_seq_length
+        length_max = args.replay_max_seq_length if is_replay else args.max_seq_length
         while not completed:
             attempts_for_step += 1
-            if attempts_for_step > len(dataset):
+            if attempts_for_step > len(active_dataset):
                 raise RuntimeError(
                     "No dataset sample remained inside the requested "
-                    f"{args.min_seq_length}-{args.max_seq_length} prompt-only "
+                    f"{length_min}-{length_max} prompt-only "
                     "range after removing markers. Rebuild the dataset."
                 )
-            if data_ptr >= len(indices):
-                rng.shuffle(indices)
-                data_ptr = 0
-            example = dataset[indices[data_ptr]]
-            data_ptr += 1
+            if is_replay:
+                if replay_ptr >= len(replay_indices):
+                    rng.shuffle(replay_indices)
+                    replay_ptr = 0
+                example = replay_dataset[replay_indices[replay_ptr]]
+                replay_ptr += 1
+            else:
+                if data_ptr >= len(indices):
+                    rng.shuffle(indices)
+                    data_ptr = 0
+                example = dataset[indices[data_ptr]]
+                data_ptr += 1
             text = format_prompt_only(example, tokenizer)
             input_ids = attention_mask = position_ids = None
             hidden_by_layer = None
@@ -991,7 +1046,7 @@ def main(default_model_type: str = "llama") -> None:
                     device,
                 )
                 seq_len = int(input_ids.shape[1])
-                if not args.min_seq_length <= seq_len <= args.max_seq_length:
+                if not length_min <= seq_len <= length_max:
                     skipped_length += 1
                     continue
                 meta = example.get("meta", {}) or {}
@@ -1086,6 +1141,20 @@ def main(default_model_type: str = "llama") -> None:
                         rows,
                         args.positive_temperature,
                     )
+                    positive_kl = energy.new_zeros(())
+                    if args.positive_teacher_weight:
+                        positive_kl = distribution_kl(
+                            row_distribution(energy, rows, args.positive_temperature, True), teacher)
+                    replay_anchor = energy.new_zeros(())
+                    if is_replay and args.replay_anchor_weight:
+                        with torch.no_grad():
+                            anchor_full = apply_conv_energy(block_scores_full, conv.anchor[layer_idx])
+                            anchor_energy = anchor_full[:, :, :q_real, :k_real]
+                        replay_anchor = anchor_replay_loss(
+                            energy, anchor_energy, rows, args.positive_temperature)
+                        del anchor_full, anchor_energy
+                    kernel_anchor = (
+                        conv.get_layer_weight(layer_idx) - conv.anchor[layer_idx]).square().mean()
                     topk_recall_loss = energy.new_zeros(())
                     if args.topk_recall_loss_weight > 0.0:
                         topk_recall_loss = topk_boundary_recall_loss(
@@ -1132,6 +1201,9 @@ def main(default_model_type: str = "llama") -> None:
                         + args.negative_weight * negative
                         + compression_weight * entropy
                         + args.budget_loss_weight * budget
+                        + args.positive_teacher_weight * positive_kl
+                        + args.replay_anchor_weight * replay_anchor
+                        + args.kernel_anchor_weight * kernel_anchor
                     )
                     total_loss = total_loss + layer_loss / len(layers)
 
@@ -1165,6 +1237,10 @@ def main(default_model_type: str = "llama") -> None:
                         )
                         stats = {
                             "teacher_kl": kl,
+                            "positive_teacher_kl": positive_kl,
+                            "replay_anchor_kl": replay_anchor,
+                            "kernel_anchor_mse": kernel_anchor,
+                            "replay_fraction": energy.new_tensor(float(is_replay)),
                             "teacher_l1": l1,
                             "topk_boundary_loss": topk_recall_loss,
                             "teacher_recall": teacher_recall,
@@ -1246,7 +1322,7 @@ def main(default_model_type: str = "llama") -> None:
                 for name, value in running.items()
             )
             print(
-                f"step={step:05d} layers={','.join(map(str, layers))} "
+                f"step={step:05d} stream={'replay' if is_replay else 'ruler'} layers={','.join(map(str, layers))} "
                 f"seq_len={seq_len} skipped_length={skipped_length} {metrics}"
             )
             running.clear()
@@ -1258,14 +1334,14 @@ def main(default_model_type: str = "llama") -> None:
             ema_step = args.out.replace(".pt", f"_ema_step{step}.pt")
             conv.save(raw_step)
             ema.save(ema_step)
-            state_path = save_state(args.out, step, conv, optimizer, ema)
+            state_path = save_state(args.out, step, conv, optimizer, ema, control_state())
             print(f"[save] raw={raw_step}")
             print(f"[save] ema={ema_step}")
             print(f"[save] state={state_path}")
 
     conv.save(args.out)
     ema.save(args.out.replace(".pt", "_ema.pt"))
-    state_path = save_state(args.out, args.steps, conv, optimizer, ema)
+    state_path = save_state(args.out, args.steps, conv, optimizer, ema, control_state())
     print(f"[final] raw={args.out}")
     print(f"[final] ema={args.out.replace('.pt', '_ema.pt')}")
     print(f"[final] state={state_path}")
