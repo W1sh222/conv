@@ -1,0 +1,2 @@
+﻿input_id,case,sample_index,layer,head,query,initial_utility,positive_1x1_utility,fixed_vertical_diagonal_utility,learned_5000_utility
+33d800cdb8c3b590af49da128ec536d8171bad5fe5c33f05c3a83393aec4cbe6,s0_l16_h8_qlast,0,16,8,last,0.0,0.0,-0.10167464279623117,-0.22606524543732576

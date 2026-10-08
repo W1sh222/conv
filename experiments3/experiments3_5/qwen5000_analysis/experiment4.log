@@ -1,0 +1,44 @@
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.8.0+cu128).
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]Loading checkpoint shards:  20%|██        | 1/5 [00:02<00:09,  2.26s/it]Loading checkpoint shards:  40%|████      | 2/5 [00:04<00:06,  2.22s/it]Loading checkpoint shards:  60%|██████    | 3/5 [00:06<00:04,  2.17s/it]Loading checkpoint shards:  80%|████████  | 4/5 [00:08<00:01,  1.98s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:08<00:00,  1.50s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:08<00:00,  1.78s/it]
+s0_l16_h8_qlast 40 1.0746529210855895
+s0_l16_h8_qlast 64 1.094159541512071
+s0_l16_h8_qlast 70 1.0898380944361898
+s0_l16_h8_qlast 68 1.0874523070740905
+s0_l16_h8_qlast 41 1.0870816147824875
+s0_l16_h8_qlast 62 1.084602262760499
+s0_l16_h8_qlast 5 1.0937905004626183
+s0_l16_h8_qlast 67 1.0683114197552146
+s0_l16_h8_qlast 74 1.069389510240573
+s0_l16_h8_qlast 65 1.0856510928877985
+s0_l16_h8_qlast 69 1.091019199017229
+s0_l16_h8_qlast 56 1.0872626237078
+s0_l16_h8_qlast learned_row 1.0732367727202903
+{
+  "experiment": 4,
+  "case_count": 1,
+  "aggregates": {
+    "whole_row_utility": {
+      "mean": 0.012366513625009512,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "mean_swap_utility": {
+      "mean": 0.0011690290351197101,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "swap_improvement_fraction": {
+      "mean": 0.3333333333333333,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    }
+  },
+  "inference_scope": "conditional block utility for experiments3/4; full policy NLL for experiment5",
+  "independence": "Inputs are bootstrap units; candidate blocks/layers/heads are not independent replicates",
+  "data_sha256": "0d55a60dbba8614a2a76a1fa1aaa68d011a721383b7a47612aa12ea4cfce1a90",
+  "weight_sha256": "8ec66437312b96d2fc15fc20d3f88a6b6bb2b0efb0609ce0e1fbe06617509223",
+  "status": "complete"
+}

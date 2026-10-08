@@ -1,0 +1,120 @@
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.8.0+cu128).
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]Loading checkpoint shards:  20%|██        | 1/5 [00:06<00:24,  6.04s/it]Loading checkpoint shards:  40%|████      | 2/5 [00:12<00:18,  6.01s/it]Loading checkpoint shards:  60%|██████    | 3/5 [00:18<00:12,  6.12s/it]Loading checkpoint shards:  80%|████████  | 4/5 [00:22<00:05,  5.49s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:24<00:00,  4.16s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:24<00:00,  4.92s/it]
+s0_l16_h8_qlast 5 1.0732793899548
+s0_l16_h8_qlast 6 1.0843213855365634
+s0_l16_h8_qlast 15 1.0733250782121608
+s0_l16_h8_qlast 16 1.075252956445358
+s0_l16_h8_qlast 17 1.0771250334498694
+s0_l16_h8_qlast 18 1.0787884205406764
+s0_l16_h8_qlast 19 1.07569053435703
+s0_l16_h8_qlast 20 1.0802329347535102
+s0_l16_h8_qlast 21 1.0787796727926546
+s0_l16_h8_qlast 22 1.0853793026664182
+s0_l16_h8_qlast 24 1.0787534392336977
+s0_l16_h8_qlast 25 1.0922245689766352
+s0_l16_h8_qlast 26 1.088338236482232
+s0_l16_h8_qlast 32 1.0790844021043213
+s0_l16_h8_qlast 33 1.0808111540998147
+s0_l16_h8_qlast 40 1.0818670190971627
+s0_l16_h8_qlast 41 1.0791472053599034
+s0_l16_h8_qlast 42 1.0828940348826512
+s0_l16_h8_qlast 43 1.0874259607088648
+s0_l16_h8_qlast 44 1.070088623774782
+s0_l16_h8_qlast 45 1.0806466343138266
+s0_l16_h8_qlast 46 1.0749686378476793
+s0_l16_h8_qlast 47 1.0768050771053141
+s0_l16_h8_qlast 48 1.08681856768031
+s0_l16_h8_qlast 49 1.0911823553065965
+s0_l16_h8_qlast 50 1.080512236805988
+s0_l16_h8_qlast 51 1.0961014534611837
+s0_l16_h8_qlast 52 1.074252555612875
+s0_l16_h8_qlast 53 1.0787855051524287
+s0_l16_h8_qlast 54 1.0767577879961006
+s0_l16_h8_qlast 55 1.0978081563155189
+s0_l16_h8_qlast 56 1.0872626237078
+s0_l16_h8_qlast 57 1.0883471277275756
+s0_l16_h8_qlast 58 1.0756534693688637
+s0_l16_h8_qlast 59 1.0886608731021927
+s0_l16_h8_qlast 60 1.0853968424011944
+s0_l16_h8_qlast 61 1.0854314865911279
+s0_l16_h8_qlast 62 1.0748402580892238
+s0_l16_h8_qlast 64 1.0856372937007777
+s0_l16_h8_qlast 65 1.0804580039683576
+s0_l16_h8_qlast 66 1.092037330228598
+s0_l16_h8_qlast 67 1.0982008447948688
+s0_l16_h8_qlast 68 1.0940512111735592
+s0_l16_h8_qlast 69 1.0786788559265017
+s0_l16_h8_qlast 70 1.0765500203034764
+s0_l16_h8_qlast 74 1.083193428831181
+s0_l16_h8_qlast 75 1.0941995595442688
+s0_l16_h8_qlast 76 1.098187068920926
+s0_l16_h8_qlast 77 1.081445016313531
+s0_l16_h8_qlast 78 1.0789558719293089
+s0_l16_h8_qlast 79 1.0930899217443946
+s0_l16_h8_qlast 80 1.0829006969910917
+s0_l16_h8_qlast 81 1.075212273439341
+s0_l16_h8_qlast 82 1.079897284995213
+s0_l16_h8_qlast 83 1.0752391305223996
+s0_l16_h8_qlast 84 1.0693670416886876
+s0_l16_h8_qlast 85 1.0790265686359273
+s0_l16_h8_qlast 86 1.0660477516277662
+s0_l16_h8_qlast 87 1.0923815864704831
+s0_l16_h8_qlast 88 1.0903993495564375
+s0_l16_h8_qlast 89 1.074863838285153
+s0_l16_h8_qlast 91 1.074969625182723
+s0_l16_h8_qlast 92 1.073338024211979
+s0_l16_h8_qlast 93 1.078982627146689
+s0_l16_h8_qlast 94 1.0732981783364681
+s0_l16_h8_qlast 95 1.0845485755361146
+s0_l16_h8_qlast 96 1.0942737835809493
+s0_l16_h8_qlast 101 1.0748353173067509
+s0_l16_h8_qlast 102 1.0810858267433165
+s0_l16_h8_qlast 103 1.0806907162244
+s0_l16_h8_qlast 105 1.0748313687516717
+s0_l16_h8_qlast 106 1.0845948787583235
+s0_l16_h8_qlast 109 1.075929741503661
+s0_l16_h8_qlast 110 1.0790670999862526
+s0_l16_h8_qlast 111 1.0911697219479821
+s0_l16_h8_qlast 112 1.0732983801733766
+s0_l16_h8_qlast 113 1.0750117427990529
+s0_l16_h8_qlast 114 1.0765775260569537
+s0_l16_h8_qlast 115 1.085700393988515
+s0_l16_h8_qlast 116 1.0895085313518118
+s0_l16_h8_qlast 117 1.0807497639081107
+s0_l16_h8_qlast 119 1.0845879794833775
+s0_l16_h8_qlast 120 1.0828733043284815
+s0_l16_h8_qlast 138 1.0879444085651824
+s0_l16_h8_qlast 145 1.084611676300757
+s0_l16_h8_qlast 146 1.088402516341902
+s0_l16_h8_qlast 147 1.0810650368232686
+s0_l16_h8_qlast 179 1.0897156931274417
+s0_l16_h8_qlast 180 1.0843660040694745
+{
+  "experiment": 3,
+  "case_count": 1,
+  "aggregates": {
+    "initial_spearman": {
+      "mean": 0.0008684657843102823,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "learned_spearman": {
+      "mean": -0.0016853932584269665,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "spearman_gain": {
+      "mean": -0.002553859042737249,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    }
+  },
+  "inference_scope": "conditional block utility for experiments3/4; full policy NLL for experiment5",
+  "independence": "Inputs are bootstrap units; candidate blocks/layers/heads are not independent replicates",
+  "data_sha256": "0d55a60dbba8614a2a76a1fa1aaa68d011a721383b7a47612aa12ea4cfce1a90",
+  "weight_sha256": "8ec66437312b96d2fc15fc20d3f88a6b6bb2b0efb0609ce0e1fbe06617509223",
+  "status": "complete"
+}

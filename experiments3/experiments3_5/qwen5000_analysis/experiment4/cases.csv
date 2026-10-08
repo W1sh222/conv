@@ -1,0 +1,2 @@
+﻿input_id,case,sample_index,layer,head,query,whole_row_utility,mean_swap_utility,swap_improvement_fraction
+33d800cdb8c3b590af49da128ec536d8171bad5fe5c33f05c3a83393aec4cbe6,s0_l16_h8_qlast,0,16,8,last,0.012366513625009512,0.0011690290351197101,0.3333333333333333
