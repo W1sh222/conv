@@ -1,0 +1,112 @@
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.8.0+cu128).
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]Loading checkpoint shards:  20%|██        | 1/5 [00:02<00:08,  2.15s/it]Loading checkpoint shards:  40%|████      | 2/5 [00:04<00:06,  2.15s/it]Loading checkpoint shards:  60%|██████    | 3/5 [00:06<00:04,  2.15s/it]Loading checkpoint shards:  80%|████████  | 4/5 [00:08<00:01,  1.97s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:08<00:00,  1.49s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:08<00:00,  1.76s/it]
+s0_l16_h8_qlast 67 1.0131066909503839
+s0_l16_h8_qlast 65 1.0187176291580329
+s0_l16_h8_qlast 54 1.0131013837192158
+s0_l16_h8_qlast 44 1.0187135133553253
+s0_l16_h8_qlast 61 1.0188459268558434
+s0_l16_h8_qlast 34 1.0131379186053586
+s0_l16_h8_qlast 5 1.0132108931714006
+s0_l16_h8_qlast 56 1.0075324266120007
+s0_l16_h8_qlast learned_row 1.0187846235922497
+s1_l16_h8_qlast 62 1.0907539220961942
+s1_l16_h8_qlast 67 1.102451782252106
+s1_l16_h8_qlast 1 1.0965369591148797
+s1_l16_h8_qlast 70 1.1023523515740625
+s1_l16_h8_qlast 39 1.1024696059397456
+s1_l16_h8_qlast 5 1.1025177855203927
+s1_l16_h8_qlast 66 1.0847503083166916
+s1_l16_h8_qlast 74 1.0964948022209686
+s1_l16_h8_qlast 69 1.096601034755748
+s1_l16_h8_qlast 56 1.0965048461884617
+s1_l16_h8_qlast 78 1.1024163943208471
+s1_l16_h8_qlast 61 1.096495948557445
+s1_l16_h8_qlast learned_row 1.102456982317687
+s2_l16_h8_qlast 66 0.9838984354753786
+s2_l16_h8_qlast 67 0.9839059798254246
+s2_l16_h8_qlast 70 0.9660965404621945
+s2_l16_h8_qlast 69 0.9839194661063302
+s2_l16_h8_qlast 74 0.9722152108637956
+s2_l16_h8_qlast 53 0.9839714481878554
+s2_l16_h8_qlast 61 0.960232502701435
+s2_l16_h8_qlast 55 0.9663191136220578
+s2_l16_h8_qlast 34 0.9662014196514365
+s2_l16_h8_qlast 5 0.9780620774182187
+s2_l16_h8_qlast 57 0.9661069798691704
+s2_l16_h8_qlast 46 0.9721234253251739
+s2_l16_h8_qlast 89 0.9661517249820731
+s2_l16_h8_qlast learned_row 0.9721258431497526
+s3_l16_h8_qlast 34 1.0651468075061925
+s3_l16_h8_qlast 60 1.0653598576929366
+s3_l16_h8_qlast 65 1.0827409755578745
+s3_l16_h8_qlast 67 1.0832322123778924
+s3_l16_h8_qlast 70 1.0769325962052616
+s3_l16_h8_qlast 33 1.0768853080159433
+s3_l16_h8_qlast 69 1.0768400018059294
+s3_l16_h8_qlast 40 1.0652739775015843
+s3_l16_h8_qlast 74 1.0772685082458107
+s3_l16_h8_qlast 44 1.0769078187774148
+s3_l16_h8_qlast 53 1.0829362589333453
+s3_l16_h8_qlast 45 1.0710174572821682
+s3_l16_h8_qlast 89 1.077351954900263
+s3_l16_h8_qlast 5 1.0772873368798213
+s3_l16_h8_qlast learned_row 1.0767703859068378
+s4_l16_h8_qlast 5 1.3217641832106337
+s4_l16_h8_qlast 34 1.3365177652557823
+s4_l16_h8_qlast 60 1.330687049449849
+s4_l16_h8_qlast 75 1.3220460163374634
+s4_l16_h8_qlast 43 1.3306848774225164
+s4_l16_h8_qlast 217 1.3187904549721272
+s4_l16_h8_qlast 29 1.339492666136335
+s4_l16_h8_qlast 31 1.3365371466490839
+s4_l16_h8_qlast 32 1.3363146138852209
+s4_l16_h8_qlast 6 1.3307018521836045
+s4_l16_h8_qlast 48 1.3185958939823086
+s4_l16_h8_qlast 33 1.3362910690895073
+s4_l16_h8_qlast 52 1.324637741337525
+s4_l16_h8_qlast 27 1.3277115680219755
+s4_l16_h8_qlast 206 1.3217904213926137
+s4_l16_h8_qlast 77 1.3188277431603288
+s4_l16_h8_qlast 191 1.324412983144036
+s4_l16_h8_qlast 49 1.3187894738569066
+s4_l16_h8_qlast 79 1.3309338110679532
+s4_l16_h8_qlast 88 1.3307019801973983
+s4_l16_h8_qlast learned_row 1.3304785461815851
+{
+  "experiment": 4,
+  "case_count": 5,
+  "aggregates": {
+    "whole_row_utility": {
+      "mean": -0.0022915520722682327,
+      "n_inputs": 5,
+      "ci95": [
+        -0.008234965474686894,
+        0.005958350181922501
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "mean_swap_utility": {
+      "mean": 0.00017735037805800607,
+      "n_inputs": 5,
+      "ci95": [
+        -0.0057718817326029,
+        0.007158014057858561
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "swap_improvement_fraction": {
+      "mean": 0.4185897435897436,
+      "n_inputs": 5,
+      "ci95": [
+        0.16025641025641027,
+        0.725
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    }
+  },
+  "inference_scope": "conditional block utility for experiments3/4; full policy NLL for experiment5",
+  "independence": "Inputs are bootstrap units; candidate blocks/layers/heads are not independent replicates",
+  "data_sha256": "9ecc67d769b3a6b3198a9cd9062981d15b7b51d9543d80f4444d61f6a6ac950c",
+  "weight_sha256": "8ec66437312b96d2fc15fc20d3f88a6b6bb2b0efb0609ce0e1fbe06617509223",
+  "status": "complete"
+}

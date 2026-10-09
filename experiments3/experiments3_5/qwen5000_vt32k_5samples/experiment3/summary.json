@@ -1,0 +1,38 @@
+{
+  "experiment": 3,
+  "case_count": 5,
+  "aggregates": {
+    "initial_spearman": {
+      "mean": -0.028683738864099927,
+      "n_inputs": 5,
+      "ci95": [
+        -0.1282049857145901,
+        0.06964451631971434
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "learned_spearman": {
+      "mean": -0.024722505958461018,
+      "n_inputs": 5,
+      "ci95": [
+        -0.13749063670411987,
+        0.07560435818862787
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "spearman_gain": {
+      "mean": 0.003961232905638913,
+      "n_inputs": 5,
+      "ci95": [
+        -0.028216967015388263,
+        0.03613943282666608
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    }
+  },
+  "inference_scope": "conditional block utility for experiments3/4; full policy NLL for experiment5",
+  "independence": "Inputs are bootstrap units; candidate blocks/layers/heads are not independent replicates",
+  "data_sha256": "9ecc67d769b3a6b3198a9cd9062981d15b7b51d9543d80f4444d61f6a6ac950c",
+  "weight_sha256": "8ec66437312b96d2fc15fc20d3f88a6b6bb2b0efb0609ce0e1fbe06617509223",
+  "status": "complete"
+}

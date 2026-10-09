@@ -1,0 +1,49 @@
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.8.0+cu128).
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]Loading checkpoint shards:  20%|██        | 1/5 [00:02<00:08,  2.11s/it]Loading checkpoint shards:  40%|████      | 2/5 [00:04<00:06,  2.12s/it]Loading checkpoint shards:  60%|██████    | 3/5 [00:06<00:04,  2.11s/it]Loading checkpoint shards:  80%|████████  | 4/5 [00:08<00:01,  1.94s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:08<00:00,  1.47s/it]Loading checkpoint shards: 100%|██████████| 5/5 [00:08<00:00,  1.73s/it]
+{
+  "experiment": 5,
+  "case_count": 5,
+  "aggregates": {
+    "initial_utility": {
+      "mean": 0.0,
+      "n_inputs": 5,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "positive_1x1_utility": {
+      "mean": 0.0,
+      "n_inputs": 5,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "fixed_vertical_diagonal_utility": {
+      "mean": -0.045528186915686164,
+      "n_inputs": 5,
+      "ci95": [
+        -0.07832315868127782,
+        -0.012541367647752044
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "learned_5000_utility": {
+      "mean": -0.05547859814787655,
+      "n_inputs": 5,
+      "ci95": [
+        -0.09365816610815629,
+        -0.01821975384280521
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    }
+  },
+  "inference_scope": "conditional block utility for experiments3/4; full policy NLL for experiment5",
+  "independence": "Inputs are bootstrap units; candidate blocks/layers/heads are not independent replicates",
+  "data_sha256": "9ecc67d769b3a6b3198a9cd9062981d15b7b51d9543d80f4444d61f6a6ac950c",
+  "weight_sha256": "8ec66437312b96d2fc15fc20d3f88a6b6bb2b0efb0609ce0e1fbe06617509223",
+  "status": "complete"
+}
