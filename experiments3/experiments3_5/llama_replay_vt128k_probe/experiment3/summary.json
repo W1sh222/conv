@@ -1,0 +1,34 @@
+{
+  "experiment": 3,
+  "case_count": 1,
+  "aggregates": {
+    "initial_spearman": {
+      "mean": -0.16647863796550869,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "learned_spearman": {
+      "mean": -0.13984962406015036,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "spearman_gain": {
+      "mean": 0.026629013905358323,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    }
+  },
+  "inference_scope": "conditional block utility for experiments3/4; full policy NLL for experiment5",
+  "independence": "Inputs are bootstrap units; candidate blocks/layers/heads are not independent replicates",
+  "data_sha256": "99fcbd08c336fbde2e654e545d1317fe17ffa1743ef68fdbf3598f85adfa5563",
+  "weight_sha256": "41b4f4ee68c0d39e64641a7e4208744a1af2e901cb0a659ffecaf953b0288faf",
+  "model_type": "llama",
+  "model_path": "/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct",
+  "weight_path": "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn/conv_weights/llama4000_ruler10_replay_topp092_v1/conv_kernel_7x7_llama4000_ruler10_replay_ema.pt",
+  "learned_policy": "learned_llama_replay",
+  "topk_ratio": 0.65,
+  "status": "complete"
+}

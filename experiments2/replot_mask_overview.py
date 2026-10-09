@@ -65,27 +65,17 @@ def draw(input_dir, output_png, dpi=300, font_scale=1.0,
     head = args.get("head", "?")
     title = f"Layer {layer} / Head {head}"
     scale = float(font_scale)
-<<<<<<< HEAD
+    
     plt.rcParams.update({
         "font.family": "sans-serif",
         "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
         "font.size": 14 * scale,
-        "axes.labelsize": 18 * scale,
-        "xtick.labelsize": 18 * scale,
-        "ytick.labelsize": 18 * scale,
-        "legend.fontsize": 13 * scale,
-=======
-    
-    # 【修改点 1】：大幅调大所有基础字体数值
-    plt.rcParams.update({
-        "font.family": "sans-serif",
-        "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
-        "font.size": 20 * scale,          # 原 14 (全局默认)
-        "axes.labelsize": 28 * scale,     # 原 18 (X/Y轴标签: Key block / Query block)
-        "xtick.labelsize": 24 * scale,    # 原 18 (X轴刻度数字)
-        "ytick.labelsize": 24 * scale,    # 原 18 (Y轴刻度数字)
-        "legend.fontsize": 20 * scale,    # 原 13 (图例文字: Selected 等)
->>>>>>> 1e1e944bd237115eef765596aa6d2c3cf1d7799c
+        # 【修改点 1】：放大左侧(Y轴)和下方(X轴)的标题字体 (原为 18)
+        "axes.labelsize": 36 * scale, 
+        # 【修改点 2】：同步放大坐标轴刻度数字，保持协调 (原为 18)
+        "xtick.labelsize": 22 * scale,
+        "ytick.labelsize": 22 * scale,
+        "legend.fontsize": 22 * scale,
         "axes.linewidth": 0.8,
         "xtick.major.width": 0.8,
         "ytick.major.width": 0.8,
@@ -94,30 +84,19 @@ def draw(input_dir, output_png, dpi=300, font_scale=1.0,
         "svg.fonttype": "none",
     })
     blue, white, gray = "#92BEDF", "#FFFFFF", "#EEEEEE"
-    # Keep a square map. Larger type is accommodated by a larger canvas rather
-    # than reducing the map until the data become hard to read.
     canvas_scale = max(1.0, scale / 1.4)
     fig, ax = plt.subplots(figsize=(9 * canvas_scale, 9 * canvas_scale))
     ax.imshow(image, cmap=ListedColormap([white, blue, gray]), vmin=0, vmax=2,
               interpolation="nearest", origin="upper")
-<<<<<<< HEAD
-    ax.set_xlabel("Key block", labelpad=9 * scale)
-    ax.set_ylabel("Query block", labelpad=9 * scale)
-    ax.set_title(title, fontsize=18 * scale, pad=12 * scale)
-    ax.tick_params(direction="out", length=4, pad=5 * scale)
-=======
               
-    # 【修改点 2】：增加 labelpad 防止大字体被边缘裁剪
-    ax.set_xlabel("Key block", labelpad=15 * scale)
-    ax.set_ylabel("Query block", labelpad=15 * scale)
+    # 【修改点 3】：增加 labelpad，防止大字体被图表边缘裁剪 (原为 9)
+    ax.set_xlabel("Key block", labelpad=14 * scale)
+    ax.set_ylabel("Query block", labelpad=14 * scale)
     
-    # 【修改点 3】：大幅调大主标题字体和顶部间距
-    ax.set_title(title, fontsize=32 * scale, pad=20 * scale)
+    # 【修改点 4】：大幅放大顶部主标题字体，并增加顶部间距 (原 fontsize=18, pad=12)
+    ax.set_title(title, fontsize=40 * scale, pad=20 * scale)
     
-    # 增加刻度数字与坐标轴的间距
-    ax.tick_params(direction="out", length=4, pad=8 * scale)
-    
->>>>>>> 1e1e944bd237115eef765596aa6d2c3cf1d7799c
+    ax.tick_params(direction="out", length=4, pad=6 * scale)
     handles = [
         Patch(facecolor=blue, edgecolor="#777777", linewidth=0.7, label="Selected"),
         Patch(facecolor=white, edgecolor="#777777", linewidth=0.7, label="Unselected"),
@@ -130,15 +109,12 @@ def draw(input_dir, output_png, dpi=300, font_scale=1.0,
                            bbox_to_anchor=(0.97, 0.97), ncol=1, **legend_kwargs)
         fig.tight_layout(pad=1.2)
         fig.canvas.draw()
-        # The complete legend must remain within the gray, future-key triangle.
-        # Its bottom-left is the corner closest to the causal diagonal.
         bounds = legend.get_window_extent(fig.canvas.get_renderer())
         left, bottom = ax.transAxes.inverted().transform((bounds.x0, bounds.y0))
         if left + bottom <= 1.02:
             plt.close(fig)
             raise ValueError("Legend would cover valid blocks; use --legend-location bottom")
     else:
-        # A separate figure-level legend leaves a measured gap below the xlabel.
         legend = fig.legend(handles=handles, loc="lower center", ncol=3,
                             bbox_to_anchor=(0.5, 0.02), columnspacing=1.1,
                             **legend_kwargs)

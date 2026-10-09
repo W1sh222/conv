@@ -1,0 +1,8 @@
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.8.0+cu128).
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:02<00:08,  2.68s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:05<00:05,  2.65s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:07<00:02,  2.63s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:08<00:00,  1.82s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:08<00:00,  2.13s/it]
+s0_l16_h8_qlast 471 0.9076908057084604
+s0_l16_h8_qlast 592 0.9082991501570425
+s0_l16_h8_qlast 333 0.9066230132289506
+s0_l16_h8_qlast 324 0.9050671414548891
+s0_l16_h8_qlast 686 0.9097148003387371
+s0_l16_h8_qlast 698 0.9001419120230078
