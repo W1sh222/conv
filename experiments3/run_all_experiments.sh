@@ -19,8 +19,8 @@ usage() {
 Usage: bash experiments3/run_all_experiments.sh [options]
   --data FILE         Existing observation.jsonl (default: vt_32k_seed42)
   --output-root DIR   New/empty directory containing experiment3/4/5 and logs
-  --model DIR         Qwen3 model path
-  --conv-weights FILE Qwen step5000 weights
+  --model DIR         Qwen3 or Llama model path (default: Qwen3)
+  --conv-weights FILE Matching convolution weights (default: Qwen step5000)
   --python BIN        Python executable from the active evaluation environment
   --dry-run          Print all three configurations; do not load models/write results
   --help             Show this help

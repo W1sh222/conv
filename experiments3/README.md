@@ -1,5 +1,32 @@
 # Experiment 3: learned score ranking versus intervention utility
 
+## Llama续训权重的独立版本
+
+```bash
+conda activate fyc_qwen
+bash experiments3/run_all_experiments_llama_replay.sh
+```
+
+使用 `Llama-3.1-8B-Instruct` 和
+`xattn/conv_weights/llama4000_ruler10_replay_topp092_v1/conv_kernel_7x7_llama4000_ruler10_replay_ema.pt`。
+默认自动生成5个Llama模板的32K VT样本，然后顺序运行实验3、4、5，结果保存到新的
+`experiments3/experiments3_5/llama_replay_vt32k_<时间>_<进程号>/`。现有Qwen输出不改动。
+
+指定固定结果目录：
+
+```bash
+bash experiments3/run_all_experiments_llama_replay.sh \
+  --output-root experiments3/experiments3_5/llama_replay_vt32k_5samples
+```
+
+沿用Qwen分析的Top-k=0.65、stride=8、layer16/head8/最后query块；若需要0.7，追加 `--ratio 0.7`。
+权重训练名称中的`topp092`并不改变本分析的Top-k预算，此处仍是答案NLL分析。
+新结果的训练策略名称为 `learned_llama_replay`，不会误标为Qwen step5000。
+可通过 `--data` 指定已有的**Llama模板**数据；不要直接将带Qwen模板的prompt作为Llama实验输入。
+自动复用数据会核对模型、长度、样本数、种子和模板；不会覆盖已有数据目录。
+公共引擎依据backbone配置核对卷积权重的层数/query头数，Qwen与Llama权重不能混用。
+`--dry-run` 只打印计划，不生成数据、不加载模型、不修改结果。
+
 三个实验一起运行（已激活 `fyc_qwen`）：
 
 ```bash

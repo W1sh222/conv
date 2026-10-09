@@ -102,12 +102,14 @@ def plot(root,kind):
         ax.set(xlabel='Case',ylabel='Whole-row utility (NLL decrease)')
         save(fig,out/'whole_row_utility')
     else:
-        policies=list(COLORS)
         fig,ax=plt.subplots(figsize=(7.2,3.4))
         for _,d in cases:
-            ys=[d['metrics']['losses'][p] for p in policies]
+            losses=d['metrics']['losses']
+            learned=d.get('learned_policy',d.get('arguments',{}).get('learned_policy_name','learned_5000'))
+            policies=list(COLORS)[:3]+[learned]
+            ys=[losses[p] for p in policies]
             ax.plot(range(4),ys,c='#BBBBBB',lw=.65,alpha=.65)
-            for i,p in enumerate(policies): ax.scatter(i,ys[i],s=38,c=COLORS[p],marker=['o','D','^','s'][i],zorder=3)
+            for i,p in enumerate(policies): ax.scatter(i,ys[i],s=38,c=COLORS.get(p,COLORS['learned_5000']),marker=['o','D','^','s'][i],zorder=3)
         ax.set(xticks=range(4),xticklabels=['Initial','1x1 control','Fixed V + D','ConvPrefill'],ylabel='Ground-truth answer NLL')
         ax.set_title(f'{len(cases)} inputs; each line connects the same input')
         save(fig,out/'neighborhood_ablation_nll')

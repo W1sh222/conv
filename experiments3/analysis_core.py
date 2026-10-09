@@ -3,6 +3,14 @@ import math
 import numpy as np
 
 
+def validate_checkpoint_layout(model_type,layers,heads,shape):
+    if model_type not in ('qwen3','llama'):
+        raise ValueError('Only Qwen3 and Llama backbones are supported')
+    expected=(layers,heads,7,7)
+    if tuple(shape)!=expected:
+        raise ValueError(f'{model_type} expects weights shaped {expected}, got {tuple(shape)}; use matching backbone weights')
+
+
 def ranks(values):
     values=np.asarray(values,dtype=float)
     if not np.isfinite(values).all(): raise ValueError('Non-finite ranking values')

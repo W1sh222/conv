@@ -22,6 +22,9 @@ class PlotTests(unittest.TestCase):
                      'losses':dict(initial=1.1,positive_1x1=1.1,fixed_vertical_diagonal=1.12,learned_5000=1.08)}
             (case/'experiment.json').write_text(json.dumps(dict(status='complete',metrics=metrics)))
             for kind in (3,4,5): plot(root,kind)
+            metrics['losses']['learned_llama_replay']=metrics['losses'].pop('learned_5000')
+            (case/'experiment.json').write_text(json.dumps(dict(status='complete',metrics=metrics,learned_policy='learned_llama_replay')))
+            plot(root,5)
             for stem in ('rank_correlation','top_candidates_utility','whole_row_utility','neighborhood_ablation_nll'):
                 for ext in ('png','pdf','svg'):
                     self.assertGreater((root/'plots'/f'{stem}.{ext}').stat().st_size,100)

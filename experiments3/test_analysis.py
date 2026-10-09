@@ -1,10 +1,15 @@
 """CPU tests of analysis/interventions; no experimental results are manufactured."""
 import unittest
 import numpy as np
-from analysis_core import ranks,spearman,row_swap,compare_sets,ranking_summary,input_cluster_summary,fixed_vertical_diagonal_kernel
+from analysis_core import ranks,spearman,row_swap,compare_sets,ranking_summary,input_cluster_summary,fixed_vertical_diagonal_kernel,validate_checkpoint_layout
 
 
 class AnalysisTests(unittest.TestCase):
+    def test_qwen_llama_checkpoint_layout(self):
+        validate_checkpoint_layout('qwen3',36,32,(36,32,7,7))
+        validate_checkpoint_layout('llama',32,32,(32,32,7,7))
+        with self.assertRaises(ValueError): validate_checkpoint_layout('llama',32,32,(36,32,7,7))
+        with self.assertRaises(ValueError): validate_checkpoint_layout('other',32,32,(32,32,7,7))
     def test_fixed_kernel_union_has_thirteen_positions(self):
         k=fixed_vertical_diagonal_kernel()
         self.assertEqual(k.sum(),13)

@@ -10,7 +10,7 @@ import random
 import sys
 
 import numpy as np
-from analysis_core import compare_sets, row_swap, ranking_summary, input_cluster_summary, fixed_vertical_diagonal_kernel
+from analysis_core import compare_sets, row_swap, ranking_summary, input_cluster_summary, fixed_vertical_diagonal_kernel, validate_checkpoint_layout
 
 ROOT=Path(__file__).resolve().parents[1]
 SWAP=ROOT/'experiments/block_label_swap'
@@ -21,11 +21,16 @@ WEIGHT=ROOT/'xattn/qwen_weights/conv_qwen3_t065_longbench_stage4_v2/conv_kernel_
 POLICIES=['initial','positive_1x1','fixed_vertical_diagonal','learned_5000']
 
 
+def policies(args):
+    return POLICIES[:3]+[args.learned_policy_name]
+
+
 def parser(kind):
     p=argparse.ArgumentParser(description=f'Experiment {kind}: equal-budget block utility analysis')
     p.add_argument('--model',default='/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Qwen3-8B')
     p.add_argument('--data',required=True,help='JSONL with prompt and label; can reuse observation.jsonl')
     p.add_argument('--conv-weights',default=str(WEIGHT))
+    p.add_argument('--learned-policy-name',default='learned_5000',help='Output key identifying the learned checkpoint; Llama launcher uses learned_llama_replay')
     p.add_argument('--sample-indices',default='0',help='Comma-separated held-out input indices')
     p.add_argument('--layers',default='16',help='Comma-separated zero-based layers')
     p.add_argument('--heads',default='8',help='Comma-separated query heads')
@@ -74,12 +79,12 @@ class Controller(old.MaskController):
         initial,meta=self.raw_score_fn(*a,**kw)
         layer=self.current_layer
         need_all=layer==self.args.layer
-        policies=POLICIES if need_all else [self.record_policy]
+        policy_names=policies(self.args) if need_all else [self.record_policy]
         computed={}
-        for policy in policies:
+        for policy in policy_names:
             if policy in ('initial','positive_1x1'):
                 energy=initial  # positive 1x1 gain=1: exact Top-k invariance control
-            elif policy=='learned_5000':
+            elif policy==self.args.learned_policy_name:
                 energy=self.apply(initial,self.weights[layer].to(initial.device))
             else:
                 h=initial.shape[1]
@@ -133,7 +138,9 @@ def setup(a):
     random.seed(a.seed);np.random.seed(a.seed);torch.manual_seed(a.seed);torch.cuda.manual_seed_all(a.seed)
     torch.backends.cuda.matmul.allow_tf32=False;torch.backends.cudnn.allow_tf32=False
     config=AutoConfig.from_pretrained(a.model)
-    if config.model_type!='qwen3': raise ValueError('Default step5000 checkpoint requires Qwen3, not Llama')
+    if config.model_type not in ('qwen3','llama'): raise ValueError('Only Qwen3 and Llama backbones are supported')
+    if config.model_type=='llama' and a.learned_policy_name=='learned_5000':
+        a.learned_policy_name='learned_checkpoint'
     if getattr(config,'use_sliding_window',False): raise ValueError('Sliding-window attention is unsupported')
     if a.rope_factor is not None:
         config.rope_scaling={'rope_type':'yarn','factor':a.rope_factor,'original_max_position_embeddings':a.rope_original_length}
@@ -141,8 +148,8 @@ def setup(a):
     if a.max_position_embeddings: config.max_position_embeddings=a.max_position_embeddings
     weight=torch.load(a.conv_weights,map_location='cpu',weights_only=True).float()
     if weight.ndim==5 and weight.shape[2]==1: weight=weight[:,:,0]
-    if tuple(weight.shape)!=(config.num_hidden_layers,config.num_attention_heads,7,7) or not torch.isfinite(weight).all():
-        raise ValueError('Expected finite [Qwen layers, query heads,7,7] step5000 tensor')
+    validate_checkpoint_layout(config.model_type,config.num_hidden_layers,config.num_attention_heads,weight.shape)
+    if not torch.isfinite(weight).all(): raise ValueError('Checkpoint contains non-finite convolution weights')
     tokenizer=AutoTokenizer.from_pretrained(a.model,use_fast=True)
     dm=a.device_map if a.device_map in {'auto','balanced','balanced_low_0','sequential'} else {'':a.device_map}
     model=AutoModelForCausalLM.from_pretrained(a.model,config=config,torch_dtype=getattr(torch,a.dtype),
@@ -166,6 +173,7 @@ def run_case(kind,a,env,case_dir):
     if not 0<=a.layer<config.num_hidden_layers or not 0<=a.head<config.num_attention_heads:
         raise ValueError('Layer/head outside model layout')
     c=Controller(a,len(prompt_ids),torch,adapter,conv,score_fn,weight,apply)
+    learned_policy=a.learned_policy_name
     fast=adapter.BaseFastPrefillConfig(metric='conv',stride=a.stride,block_topk_ratio=a.ratio,print_detail=False)
     original=adapter._run_prefill; saved=[]
     adapter._run_prefill=c.prefill
@@ -182,14 +190,16 @@ def run_case(kind,a,env,case_dir):
           'weight_sha256':hashlib.sha256(Path(a.conv_weights).read_bytes()).hexdigest(),
           'versions':{'torch':torch.__version__,'transformers':__import__('transformers').__version__,
                       'numpy':np.__version__},
-          'gpu':torch.cuda.get_device_name()}
+          'gpu':torch.cuda.get_device_name(),
+          'model_type':config.model_type,'model_path':a.model,'weight_path':str(Path(a.conv_weights).resolve()),
+          'learned_policy':learned_policy,'topk_ratio':a.ratio}
     case_dir.mkdir(parents=True);write_json(case_dir/'experiment.json',meta)
     trials=[]
     try:
         baseline=evaluate(model,prompt_ids,label_ids,torch,c)
         c.recording=False
         if c.plan is None: raise RuntimeError('Target row was not visited')
-        qb=c.plan['query_block'];base=c.rows['initial'].copy();learned=c.rows['learned_5000'].copy()
+        qb=c.plan['query_block'];base=c.rows['initial'].copy();learned=c.rows[learned_policy].copy()
         maps={k:v.copy() for k,v in c.maps.items()}
         np.savez_compressed(case_dir/'block_maps.npz',query_block=qb,initial_mask=base,learned_mask=learned,**maps)
         def trial(row,record):
@@ -203,7 +213,7 @@ def run_case(kind,a,env,case_dir):
         if kind==3:
             candidates=list(c.plan['candidate_key_blocks'])
             initial_order=sorted(candidates,key=lambda k:(-maps['initial'][qb,k],k))
-            learned_order=sorted(candidates,key=lambda k:(-maps['learned_5000'][qb,k],k))
+            learned_order=sorted(candidates,key=lambda k:(-maps[learned_policy][qb,k],k))
             initial_rank={k:i+1 for i,k in enumerate(initial_order)}
             learned_rank={k:i+1 for i,k in enumerate(learned_order)}
             if a.max_candidates and len(candidates)>a.max_candidates:
@@ -212,19 +222,19 @@ def run_case(kind,a,env,case_dir):
                 trial(row_swap(base,qb,c.plan['removed_key_block'],k),dict(key_block=k,
                       initial_candidate_rank=initial_rank[k],learned_candidate_rank=learned_rank[k],
                       removed=c.plan['removed_key_block'],initial_score=float(maps['initial'][qb,k]),
-                      learned_score=float(maps['learned_5000'][qb,k])))
+                      learned_score=float(maps[learned_policy][qb,k])))
             repeated=evaluate(model,prompt_ids,label_ids,torch,c)
             drift=abs(repeated['label_loss']-baseline['label_loss']);tol=max(a.loss_tolerance,5*drift)
             metrics=ranking_summary(trials,[int(x) for x in a.top_sizes.split(',')],tol)
             metrics.update(effective_tolerance=tol,baseline_repeat_drift=drift,
                            full_candidate_count=len(c.plan['candidate_key_blocks']),exhaustive=not a.max_candidates or len(candidates)==len(c.plan['candidate_key_blocks']))
         elif kind==4:
-            sets=compare_sets(base,learned,qb,maps['initial'][qb],maps['learned_5000'][qb],a.all_pairs)
+            sets=compare_sets(base,learned,qb,maps['initial'][qb],maps[learned_policy][qb],a.all_pairs)
             for r,k in sets['pairs']:
                 trial(row_swap(base,qb,r,k),dict(removed=r,added=k,initial_removed_score=float(maps['initial'][qb,r]),
                                               initial_added_score=float(maps['initial'][qb,k]),
-                                              learned_removed_score=float(maps['learned_5000'][qb,r]),
-                                              learned_added_score=float(maps['learned_5000'][qb,k]),trial_type='single_swap'))
+                                              learned_removed_score=float(maps[learned_policy][qb,r]),
+                                              learned_added_score=float(maps[learned_policy][qb,k]),trial_type='single_swap'))
             whole=trial(learned,dict(policy='learned_row',trial_type='whole_row'))
             repeated=evaluate(model,prompt_ids,label_ids,torch,c)
             drift=abs(repeated['label_loss']-baseline['label_loss']);tol=max(a.loss_tolerance,5*drift)
@@ -236,7 +246,7 @@ def run_case(kind,a,env,case_dir):
                          effective_tolerance=tol,baseline_repeat_drift=drift)
         else:
             losses={'initial':baseline['label_loss']};repeat_drift={}
-            for policy in POLICIES:
+            for policy in policies(a):
                 if policy!='initial':
                     c.record_policy=policy;c.recording=True;c.frozen_masks={}
                     result=evaluate(model,prompt_ids,label_ids,torch,c)
@@ -264,6 +274,8 @@ def run_case(kind,a,env,case_dir):
 
 def main(kind):
     a=parser(kind).parse_args()
+    if not a.learned_policy_name.isidentifier() or a.learned_policy_name in POLICIES[:3]:
+        raise ValueError('learned-policy-name must be an identifier distinct from the control policies')
     if not 0<a.ratio<1 or a.stride<=0 or 128%a.stride or a.max_candidates<0 or a.loss_tolerance<0:
         raise ValueError('Invalid ratio/stride/candidate cap/tolerance')
     samples=[int(x) for x in a.sample_indices.split(',')]
@@ -280,7 +292,7 @@ def main(kind):
               note='No results computed. Experiment5 runs each full policy once per input with sparse background.'),indent=2));return
     out=Path(a.output)
     if out.exists() and any(out.iterdir()): raise FileExistsError('Use a new/empty output directory')
-    if not Path(a.data).is_file() or not Path(a.conv_weights).is_file(): raise FileNotFoundError('Missing data or step5000 weights')
+    if not Path(a.data).is_file() or not Path(a.conv_weights).is_file(): raise FileNotFoundError('Missing input data or convolution checkpoint')
     if not a.no_plots:
         from plot_analysis import plot
     env=setup(a);out.mkdir(parents=True,exist_ok=True)
@@ -305,7 +317,9 @@ def main(kind):
              'inference_scope':'conditional block utility for experiments3/4; full policy NLL for experiment5',
              'independence':'Inputs are bootstrap units; candidate blocks/layers/heads are not independent replicates',
              'data_sha256':hashlib.sha256(Path(a.data).read_bytes()).hexdigest(),
-             'weight_sha256':cases[0]['weight_sha256'],'status':'complete'}
+             'weight_sha256':cases[0]['weight_sha256'],'model_type':cases[0]['model_type'],
+             'model_path':a.model,'weight_path':cases[0]['weight_path'],
+             'learned_policy':a.learned_policy_name,'topk_ratio':a.ratio,'status':'complete'}
     write_json(out/'summary.json',summary)
     if not a.no_plots:
         from plot_analysis import plot
