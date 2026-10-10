@@ -12,6 +12,7 @@ MODEL="/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Qwen3
 WEIGHT="xattn/qwen_weights/conv_qwen3_t065_longbench_stage4_v2/conv_kernel_7x7_qwen3_t065_longbench_replay_native_8k64k_s8_bf16_ema_step5000.pt"
 PYTHON_BIN="${PYTHON:-python}"
 DRY_RUN=false
+RESUME=false
 EXTRA_ARGS=()
 
 usage() {
@@ -23,6 +24,7 @@ Usage: bash experiments3/run_all_experiments.sh [options]
   --conv-weights FILE Matching convolution weights (default: Qwen step5000)
   --python BIN        Python executable from the active evaluation environment
   --dry-run          Print all three configurations; do not load models/write results
+  --resume           Continue the same output root; reuse completed cases/trials
   --help             Show this help
 Other options are forwarded to all three runners, e.g. --sample-indices 0,1,2,
 --ratio 0.65, --stride 8, --no-plots, --rope-factor 4.
@@ -46,6 +48,7 @@ while [[ $# -gt 0 ]]; do
         --conv-weights) need_value "$@"; WEIGHT="$2"; shift 2 ;;
         --python) need_value "$@"; PYTHON_BIN="$2"; shift 2 ;;
         --dry-run) DRY_RUN=true; shift ;;
+        --resume) RESUME=true; EXTRA_ARGS+=(--resume); shift ;;
         --help|-h) usage; exit 0 ;;
         --output|--output=*) printf 'Use --output-root instead of --output.\n' >&2; exit 2 ;;
         *) EXTRA_ARGS+=("$1"); shift ;;
@@ -56,7 +59,7 @@ command -v "$PYTHON_BIN" >/dev/null || { printf 'Python executable not found: %s
 if ! "$DRY_RUN"; then
     [[ -f "$DATA" ]] || { printf 'Data file not found: %s\n' "$DATA" >&2; exit 2; }
     [[ -f "$WEIGHT" ]] || { printf 'Weight file not found: %s\n' "$WEIGHT" >&2; exit 2; }
-    if [[ -e "$OUTPUT_ROOT" ]]; then
+    if [[ -e "$OUTPUT_ROOT" && "$RESUME" == false ]]; then
         [[ -d "$OUTPUT_ROOT" && -z "$(ls -A -- "$OUTPUT_ROOT")" ]] || {
             printf 'Output root must be a new/empty directory: %s\n' "$OUTPUT_ROOT" >&2; exit 2;
         }
@@ -76,7 +79,7 @@ for i in 0 1 2; do
     if "$DRY_RUN"; then
         "${CMD[@]}" --dry-run
     else
-        "${CMD[@]}" 2>&1 | tee "$OUTPUT_ROOT/experiment$NUMBER.log"
+        "${CMD[@]}" 2>&1 | tee -a "$OUTPUT_ROOT/experiment$NUMBER.log"
     fi
 done
 if "$DRY_RUN"; then

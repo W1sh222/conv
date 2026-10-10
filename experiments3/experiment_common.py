@@ -11,6 +11,7 @@ import sys
 
 import numpy as np
 from analysis_core import compare_sets, row_swap, ranking_summary, input_cluster_summary, fixed_vertical_diagonal_kernel, validate_checkpoint_layout
+from resume_state import atomic_json, prepare_run, TrialCheckpoint
 
 ROOT=Path(__file__).resolve().parents[1]
 SWAP=ROOT/'experiments/block_label_swap'
@@ -53,12 +54,13 @@ def parser(kind):
     p.add_argument('--all-pairs',action='store_true',help='Experiment4: exhaustive removed x added pairs; can be costly')
     p.add_argument('--output',required=True)
     p.add_argument('--no-plots',action='store_true')
+    p.add_argument('--resume',action='store_true',help='Reuse completed cases/trials with identical configuration, data and weights')
     p.add_argument('--dry-run',action='store_true')
     return p
 
 
 def write_json(path,value):
-    Path(path).write_text(json.dumps(value,indent=2,ensure_ascii=False,allow_nan=False)+'\n',encoding='utf-8')
+    atomic_json(path,value)
 
 
 def csv_file(path,rows):
@@ -193,21 +195,35 @@ def run_case(kind,a,env,case_dir):
           'gpu':torch.cuda.get_device_name(),
           'model_type':config.model_type,'model_path':a.model,'weight_path':str(Path(a.conv_weights).resolve()),
           'learned_policy':learned_policy,'topk_ratio':a.ratio}
-    case_dir.mkdir(parents=True);write_json(case_dir/'experiment.json',meta)
+    case_dir.mkdir(parents=True,exist_ok=True);write_json(case_dir/'experiment.json',meta)
+    checkpoint=TrialCheckpoint(case_dir/'checkpoint.json')
     trials=[]
     try:
         baseline=evaluate(model,prompt_ids,label_ids,torch,c)
+        baseline=checkpoint.check_baseline(baseline,a.loss_tolerance)
         c.recording=False
         if c.plan is None: raise RuntimeError('Target row was not visited')
         qb=c.plan['query_block'];base=c.rows['initial'].copy();learned=c.rows[learned_policy].copy()
         maps={k:v.copy() for k,v in c.maps.items()}
-        np.savez_compressed(case_dir/'block_maps.npz',query_block=qb,initial_mask=base,learned_mask=learned,**maps)
+        if (case_dir/'block_maps.npz').is_file():
+            with np.load(case_dir/'block_maps.npz') as prior:
+                if (int(prior['query_block'])!=qb or not np.array_equal(prior['initial_mask'],base)
+                    or not np.array_equal(prior['learned_mask'],learned)
+                    or any(not np.array_equal(prior[k],v) for k,v in maps.items())):
+                    raise ValueError('Resumed score maps/masks differ; refusing to mix trials')
+        with (case_dir/'block_maps.npz.tmp').open('wb') as f:
+            np.savez_compressed(f,query_block=qb,initial_mask=base,learned_mask=learned,**maps)
+        (case_dir/'block_maps.npz.tmp').replace(case_dir/'block_maps.npz')
         def trial(row,record):
+            cached=checkpoint.get(record)
+            if cached is not None:
+                trials.append(cached)
+                print(case_dir.name,'reusing trial',dict(record),flush=True)
+                return cached
             result=evaluate(model,prompt_ids,label_ids,torch,c,row)
             record.update(label_loss=result['label_loss'],token_losses=result['token_losses'],
                           baseline_loss=baseline['label_loss'],utility=baseline['label_loss']-result['label_loss'])
-            trials.append(record)
-            with (case_dir/'trials.jsonl').open('a',encoding='utf-8') as f: f.write(json.dumps(record)+'\n')
+            checkpoint.save(record);trials.append(record)
             print(case_dir.name,record.get('policy',record.get('key_block',record.get('added'))),result['label_loss'],flush=True)
             return result
         if kind==3:
@@ -247,6 +263,12 @@ def run_case(kind,a,env,case_dir):
         else:
             losses={'initial':baseline['label_loss']};repeat_drift={}
             for policy in policies(a):
+                cached=checkpoint.get(dict(policy=policy))
+                if cached is not None:
+                    losses[policy]=cached['label_loss'];repeat_drift[policy]=cached['repeat_drift']
+                    trials.append(cached)
+                    print(case_dir.name,'reusing policy',policy,flush=True)
+                    continue
                 if policy!='initial':
                     c.record_policy=policy;c.recording=True;c.frozen_masks={}
                     result=evaluate(model,prompt_ids,label_ids,torch,c)
@@ -255,12 +277,15 @@ def run_case(kind,a,env,case_dir):
                 repeat_drift[policy]=abs(repeated['label_loss']-losses[policy])
                 trials.append(dict(policy=policy,label_loss=losses[policy],baseline_loss=baseline['label_loss'],
                                    utility=baseline['label_loss']-losses[policy],repeat_drift=repeat_drift[policy]))
+                checkpoint.save(trials[-1])
             metrics=dict(losses=losses,utilities={k:baseline['label_loss']-v for k,v in losses.items()},
                          baseline_repeat_drift=repeat_drift,effective_tolerance=max(a.loss_tolerance,5*max(repeat_drift.values())),
                          positive_1x1_control='unit positive gain; untrained exact Top-k invariance control',
                          fixed_kernel='vertical union main diagonal, overlap counted once; untrained')
+        csv_file(case_dir/'trials.csv',trials)
+        (case_dir/'trials.jsonl').write_text(''.join(json.dumps(r,allow_nan=False)+'\n' for r in trials),encoding='utf-8')
         meta.update(status='complete',baseline=baseline,metrics=metrics)
-        write_json(case_dir/'experiment.json',meta);csv_file(case_dir/'trials.csv',trials)
+        write_json(case_dir/'experiment.json',meta)
         return meta
     except BaseException as e:
         meta.update(status='failed',error=f'{type(e).__name__}: {e}');write_json(case_dir/'experiment.json',meta);raise
@@ -291,11 +316,11 @@ def main(kind):
               dependencies=['torch+CUDA','transformers==4.51.x','triton','block_sparse_attn'],
               note='No results computed. Experiment5 runs each full policy once per input with sparse background.'),indent=2));return
     out=Path(a.output)
-    if out.exists() and any(out.iterdir()): raise FileExistsError('Use a new/empty output directory')
     if not Path(a.data).is_file() or not Path(a.conv_weights).is_file(): raise FileNotFoundError('Missing input data or convolution checkpoint')
+    prepare_run(out,kind,a)
     if not a.no_plots:
         from plot_analysis import plot
-    env=setup(a);out.mkdir(parents=True,exist_ok=True)
+    env=None
     cases=[]; records=[]
     for sample in samples:
         # Full-policy ablation is one independent input, not duplicated over layer/head knobs.
@@ -303,7 +328,15 @@ def main(kind):
         for layer,head,query in locations:
             a.sample_index=sample;a.layer=layer;a.head=head;a.query_block=query
             name=f's{sample}_l{layer}_h{head}_q{query}'
-            case=run_case(kind,a,env,out/name);cases.append(case)
+            meta_path=out/name/'experiment.json'
+            existing=json.loads(meta_path.read_text(encoding='utf-8')) if meta_path.is_file() else None
+            if existing is not None and existing.get('status')=='complete':
+                case=existing
+                print('Reusing completed case',name,flush=True)
+            else:
+                if env is None: env=setup(a)
+                case=run_case(kind,a,env,out/name)
+            cases.append(case)
             record=dict(input_id=case['input_id'],case=name,sample_index=sample,layer=layer,head=head,query=query)
             m=case['metrics']
             if kind==3:
