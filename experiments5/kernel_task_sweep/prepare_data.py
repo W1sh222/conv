@@ -3,6 +3,7 @@ import argparse
 import json
 from pathlib import Path
 import runpy
+import shutil
 import subprocess
 import sys
 
@@ -10,6 +11,50 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'experiments3'))
 from resume_state import atomic_json, file_hash
 from sweep_core import TASKS, convert
+
+PATH_BUG_SOURCE_HASHES = {
+    '22bc014304b1aaa8680000054a007be76546346d5cc2d5d4d49fb3d929890bd2',
+    '8b02f76cd2cf0164a577a7bd9a6334e148d696d56f03c98764f2099721e223b1',
+}
+
+
+def ensure_manifest(output, identity, source_key):
+    """Allow only the known path-only repair on unfinished preparation runs."""
+    output.mkdir(parents=True,exist_ok=True)
+    manifest=output/'preparation_manifest.json'
+    backup=output/'preparation_manifest.before_path_fix.json'
+    if manifest.is_file():
+        previous=json.loads(manifest.read_text(encoding='utf-8'))
+        if previous==identity:
+            return backup.is_file()
+        old_hash=previous.get('generator_sources',{}).get(source_key)
+        migrated=json.loads(json.dumps(previous))
+        if source_key in migrated.get('generator_sources',{}):
+            migrated['generator_sources'][source_key]=identity['generator_sources'][source_key]
+        if (old_hash not in PATH_BUG_SOURCE_HASHES or migrated!=identity
+            or (output/'data_ready.json').is_file()):
+            raise ValueError('Data preparation configuration differs; use a new data directory')
+        if not backup.is_file(): atomic_json(backup,previous)
+        atomic_json(manifest,identity)
+        print('Updated unfinished preparation manifest for output-path repair',flush=True)
+        return True
+    if any(output.iterdir()): raise ValueError('Nonempty data directory without provenance')
+    atomic_json(manifest,identity)
+    return False
+
+
+def recover_misplaced_raw(source, destination):
+    """Copy the known misplaced output, preserving the original file."""
+    if not source.is_file(): return False
+    if destination.is_file():
+        if file_hash(source)!=file_hash(destination):
+            raise ValueError('Misplaced and destination task data differ; refusing to overwrite')
+    else:
+        destination.parent.mkdir(parents=True,exist_ok=True)
+        temp=destination.with_name(destination.name+'.recover.tmp')
+        shutil.copy2(source,temp);temp.replace(destination)
+    print('Recovered generated task data:',source,'->',destination,flush=True)
+    return True
 
 
 def main():
@@ -23,6 +68,10 @@ def main():
     p.add_argument('--raw-data-dir',type=Path,help='Explicit existing RULER directory with TASK/validation.jsonl; must use Llama template')
     p.add_argument('--dry-run',action='store_true')
     a=p.parse_args();tasks=a.tasks.split(',')
+    # The generators run with a different cwd. Never pass their output/model paths
+    # relative to this process's cwd. Keep the original spelling for provenance.
+    requested_output=a.output
+    a.output=a.output.resolve()
     if not tasks or len(set(tasks))!=len(tasks) or any(t not in TASKS for t in tasks): raise ValueError('Invalid task list')
     if a.num_samples<1 or a.seq_length<4096: raise ValueError('Invalid sample count/context')
     if a.dry_run:
@@ -39,12 +88,11 @@ def main():
     identity['generator_sources']={str(p.relative_to(ROOT)):file_hash(p) for p in
         [Path(__file__),ruler/'synthetic.yaml',ruler/'data/template.py',ruler/'data/synthetic/constants.py',
          ruler/'data/synthetic/qa.py',ruler/'data/synthetic/niah.py',ruler/'data/synthetic/freq_words_extraction.py']}
-    a.output.mkdir(parents=True,exist_ok=True)
-    manifest=a.output/'preparation_manifest.json'
-    if manifest.is_file():
-        if json.loads(manifest.read_text())!=identity: raise ValueError('Data preparation configuration differs; use a new data directory')
-    elif any(a.output.iterdir()): raise ValueError('Nonempty data directory without provenance')
-    else: atomic_json(manifest,identity)
+    legacy_allowed=ensure_manifest(a.output,identity,str(Path(__file__).relative_to(ROOT)))
+    if requested_output.is_absolute():
+        try: legacy_output=requested_output.relative_to(ROOT)
+        except ValueError: legacy_output=None
+    else: legacy_output=requested_output
     target=a.output/'observation.jsonl';ready=a.output/'data_ready.json'
     if ready.is_file():
         if file_hash(target)!=json.loads(ready.read_text())['data_sha256']: raise ValueError('Prepared data changed')
@@ -55,10 +103,14 @@ def main():
     tokenizer=AutoTokenizer.from_pretrained(a.model,use_fast=True)
     converted=[]
     for task in tasks:
-        raw_root=a.raw_data_dir or a.output/'raw'
+        raw_root=(a.raw_data_dir or a.output/'raw').resolve()
         raw=raw_root/task/'validation.jsonl'
         task_ready=a.output/(task+'_ready.json')
-        if a.raw_data_dir is None and not task_ready.is_file():
+        recovered=False
+        if legacy_allowed and a.raw_data_dir is None and legacy_output is not None and not task_ready.is_file():
+            misplaced=(ruler/'data'/legacy_output/'raw'/task/'validation.jsonl').resolve()
+            if misplaced!=raw: recovered=recover_misplaced_raw(misplaced,raw)
+        if a.raw_data_dir is None and not task_ready.is_file() and not recovered:
             # Preserve an incomplete generator output before retrying this task.
             if raw.is_file():
                 backup=raw.with_name('validation.incomplete.'+file_hash(raw)+'.jsonl')
@@ -66,7 +118,7 @@ def main():
             spec={**base[custom[task]['task']],**custom[task]}
             command=[sys.executable,'-u',str(ruler/'data/synthetic'/f"{spec['task']}.py"),
                      '--save_dir',str(raw_root),'--save_name',task,'--subset','validation',
-                     '--tokenizer_path',a.model,'--tokenizer_type','hf',
+                     '--tokenizer_path',str(Path(a.model).resolve()),'--tokenizer_type','hf',
                      '--max_seq_length',str(a.seq_length),'--tokens_to_generate',str(spec['tokens_to_generate']),
                      '--num_samples',str(a.num_samples),'--random_seed',str(a.seed),
                      '--template',template.format(task_template=spec['template'])+spec.get('answer_prefix','')]
