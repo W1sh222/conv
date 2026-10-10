@@ -1,0 +1,52 @@
+{
+  "experiment": 5,
+  "case_count": 5,
+  "aggregates": {
+    "initial_utility": {
+      "mean": 0.0,
+      "n_inputs": 5,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "positive_1x1_utility": {
+      "mean": 0.0,
+      "n_inputs": 5,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "fixed_vertical_diagonal_utility": {
+      "mean": 0.09030831835168864,
+      "n_inputs": 5,
+      "ci95": [
+        0.02450925178205341,
+        0.15610738492132384
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "learned_llama_replay_utility": {
+      "mean": 0.0583444002839091,
+      "n_inputs": 5,
+      "ci95": [
+        -0.009467369506292145,
+        0.12615617007411034
+      ],
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    }
+  },
+  "inference_scope": "conditional block utility for experiments3/4; full policy NLL for experiment5",
+  "independence": "Inputs are bootstrap units; candidate blocks/layers/heads are not independent replicates",
+  "data_sha256": "4baeeb8f92ee8df083fce709d8484fb0d2accd8eadb03054e6c67e93a0e4a70d",
+  "weight_sha256": "41b4f4ee68c0d39e64641a7e4208744a1af2e901cb0a659ffecaf953b0288faf",
+  "model_type": "llama",
+  "model_path": "/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct",
+  "weight_path": "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn/conv_weights/llama4000_ruler10_replay_topp092_v1/conv_kernel_7x7_llama4000_ruler10_replay_ema.pt",
+  "learned_policy": "learned_llama_replay",
+  "topk_ratio": 0.65,
+  "status": "complete"
+}

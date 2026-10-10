@@ -24,7 +24,7 @@
     "max_candidates": 0,
     "top_sizes": "5,10,20",
     "all_pairs": false,
-    "output": "experiments3/experiments3_5/llama_replay_vt128k_5samples/experiment3",
+    "output": "experiments3/experiments3_5/llama_replay_vt128k_5samples/experiment5",
     "no_plots": false,
     "dry_run": false,
     "selector": "initial",
@@ -40,7 +40,7 @@
   "loss_definition": "Mean teacher-forced label-token NLL; prompt-only sparse prefill; fresh KV each trial; no EOS",
   "score_definition": "Repository antidiagonal estimator; initial baseline is not the complete XAttention policy",
   "status": "complete",
-  "scope": "single layer/head/query row with all other masks frozen",
+  "scope": "all sparse layers: each policy estimates masks on its own actual activations",
   "weight_sha256": "41b4f4ee68c0d39e64641a7e4208744a1af2e901cb0a659ffecaf953b0288faf",
   "versions": {
     "torch": "2.8.0+cu128",
@@ -97,38 +97,26 @@
     ]
   },
   "metrics": {
-    "candidate_count": 357,
-    "initial_spearman": 0.06451833711563389,
-    "learned_spearman": 0.06392773668377653,
-    "top_candidates": [
-      {
-        "requested_pool_top_n": 5,
-        "actual_pool_top_n": 5,
-        "initial_mean_utility": -0.0039952945782311565,
-        "initial_improvement_fraction": 0.4,
-        "learned_mean_utility": -0.0009844202619408327,
-        "learned_improvement_fraction": 0.4
-      },
-      {
-        "requested_pool_top_n": 10,
-        "actual_pool_top_n": 10,
-        "initial_mean_utility": -0.0047758747011863115,
-        "initial_improvement_fraction": 0.2,
-        "learned_mean_utility": -0.0020388785073818362,
-        "learned_improvement_fraction": 0.4
-      },
-      {
-        "requested_pool_top_n": 20,
-        "actual_pool_top_n": 20,
-        "initial_mean_utility": -0.004390195495539562,
-        "initial_improvement_fraction": 0.2,
-        "learned_mean_utility": -0.0035235458310732383,
-        "learned_improvement_fraction": 0.25
-      }
-    ],
+    "losses": {
+      "initial": 0.6054091109722827,
+      "positive_1x1": 0.6054091109722827,
+      "fixed_vertical_diagonal": 0.41040738177737995,
+      "learned_llama_replay": 0.46545902227161506
+    },
+    "utilities": {
+      "initial": 0.0,
+      "positive_1x1": 0.0,
+      "fixed_vertical_diagonal": 0.19500172919490272,
+      "learned_llama_replay": 0.1399500887006676
+    },
+    "baseline_repeat_drift": {
+      "initial": 0.0,
+      "positive_1x1": 0.0,
+      "fixed_vertical_diagonal": 0.0,
+      "learned_llama_replay": 0.0
+    },
     "effective_tolerance": 1e-05,
-    "baseline_repeat_drift": 0.0,
-    "full_candidate_count": 357,
-    "exhaustive": true
+    "positive_1x1_control": "unit positive gain; untrained exact Top-k invariance control",
+    "fixed_kernel": "vertical union main diagonal, overlap counted once; untrained"
   }
 }
