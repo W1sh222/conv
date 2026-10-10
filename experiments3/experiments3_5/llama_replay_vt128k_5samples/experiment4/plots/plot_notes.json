@@ -1,0 +1,9 @@
+{
+  "experiment": 4,
+  "complete_cases": 5,
+  "backend": "matplotlib",
+  "alignment": "Not applicable: each export is a single panel",
+  "uncertainty": "Paired case observations shown; input-cluster bootstrap intervals are in summary.json. No significance claims.",
+  "source": "../*/trials.csv and ../*/experiment.json; ../*/block_maps.npz",
+  "qa": "Inspect exported PDFs/PNGs after inference at final paper size; plotting alone does not verify scientific outcomes."
+}

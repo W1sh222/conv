@@ -1,0 +1,56 @@
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.8.0+cu128).
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:08<00:25,  8.59s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:15<00:15,  7.72s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:22<00:07,  7.40s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:24<00:00,  5.18s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:24<00:00,  6.12s/it]
+s0_l16_h8_qlast 79 0.9041242885736707
+s0_l16_h8_qlast 126 0.9126929589309095
+s0_l16_h8_qlast 129 0.9056078047989021
+s0_l16_h8_qlast 302 0.9102321306854719
+s0_l16_h8_qlast 326 0.908846849358683
+s0_l16_h8_qlast 377 0.9077958282392832
+s0_l16_h8_qlast 385 0.90961952190661
+s0_l16_h8_qlast 402 0.9043873382377735
+s0_l16_h8_qlast 406 0.9059358492734397
+s0_l16_h8_qlast 432 0.9052375488562657
+s0_l16_h8_qlast 463 0.9053220021834766
+s0_l16_h8_qlast 478 0.9095944106547077
+s0_l16_h8_qlast 480 0.9077595667926786
+s0_l16_h8_qlast 598 0.9049573609002188
+s0_l16_h8_qlast 605 0.9065071883061054
+s0_l16_h8_qlast 622 0.9117393007102443
+s0_l16_h8_qlast 623 0.9046064419698351
+s0_l16_h8_qlast 624 0.9113817604652881
+s0_l16_h8_qlast 659 0.9078368685917336
+s0_l16_h8_qlast 681 0.9118160202395468
+{
+  "experiment": 3,
+  "case_count": 1,
+  "aggregates": {
+    "initial_spearman": {
+      "mean": -0.16647863796550869,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "learned_spearman": {
+      "mean": -0.13984962406015036,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    },
+    "spearman_gain": {
+      "mean": 0.026629013905358323,
+      "n_inputs": 1,
+      "ci95": null,
+      "unit": "independent input; layers/heads/query rows averaged within input"
+    }
+  },
+  "inference_scope": "conditional block utility for experiments3/4; full policy NLL for experiment5",
+  "independence": "Inputs are bootstrap units; candidate blocks/layers/heads are not independent replicates",
+  "data_sha256": "99fcbd08c336fbde2e654e545d1317fe17ffa1743ef68fdbf3598f85adfa5563",
+  "weight_sha256": "41b4f4ee68c0d39e64641a7e4208744a1af2e901cb0a659ffecaf953b0288faf",
+  "model_type": "llama",
+  "model_path": "/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct",
+  "weight_path": "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn/conv_weights/llama4000_ruler10_replay_topp092_v1/conv_kernel_7x7_llama4000_ruler10_replay_ema.pt",
+  "learned_policy": "learned_llama_replay",
+  "topk_ratio": 0.65,
+  "status": "complete"
+}
