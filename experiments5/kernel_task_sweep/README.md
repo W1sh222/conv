@@ -85,8 +85,58 @@ output paths for distinct runs, and never run two processes against one path.
 Data generation also reuses completed tasks with matching provenance.
 GPU KV caches are not persisted; no new KV-offloading strategy is introduced.
 
+Model loading runs in a temporary single-process environment: launcher rank
+variables are hidden during `from_pretrained` and then restored, while
+`CUDA_VISIBLE_DEVICES` and `device_map=auto` remain intact. This prevents
+Transformers 4.51 from converting automatic model placement into tensor
+parallelism when a scheduler supplies `WORLD_SIZE` without `LOCAL_RANK`.
+Launch the sweep as one Python process, not multi-rank `torchrun`. The known
+earlier loading-failure manifest can be upgraded only before any policy loss
+has been saved; its original manifest is backed up. Prepared inputs are reused.
+
+The default diagnostic block selector is now `--mask-backend cpu`: full padded
+score estimation/refinement still runs on GPU, then real-block scores are
+transferred to CPU for causal fixed-budget ranking. Ties favor smaller key-block
+indices, consistently across every kernel. No CUDA Top-k/scatter is used for
+selection. Attention and answer likelihood computation remain on GPU. This is
+a loss diagnostic, not a throughput measurement; repository production
+selectors and benchmark results are unchanged. `--mask-backend cuda` explicitly
+uses the repository selector for debugging. CUDA synchronization after score
+estimation and refinement identifies earlier asynchronous kernel failures.
+The known failed sweep can migrate to this repair only before any loss result
+is committed. Existing successful-policy results from another selector cannot
+be mixed into the repaired run.
+
+Output-path repair: the preparation script resolves generator output and
+tokenizer paths to absolute paths before launching a generator in its own cwd.
+An unfinished manifest from the known earlier path-bug version can be upgraded
+only when every other parameter/source fingerprint matches; its original
+manifest is backed up. Generated files misplaced beneath
+`eval/RULER/scripts/data/experiments5/...` are copied into the correct data
+directory and validated, preserving their originals. Completed data manifests
+and conflicting task outputs are not silently replaced.
+
 To check command/configuration without generating inputs or loading models:
 
 ```bash
 bash experiments5/run_kernel_task_sweep_llama128k.sh --fixed-only --dry-run
 ```
+# Nonfinite-score diagnostics
+
+The sweep now distinguishes nonfinite fused block scores, nonfinite Q/K,
+nonfinite convolution output, and nonfinite sparse-attention output. It writes
+`nonfinite_diagnostic.json` in the run output directory. With finite Q/K only,
+nonfinite fused scores are recomputed using an FP32 PyTorch reference for the
+same inverse-antidiagonal sample sum, sampled-row causal softmax and block
+aggregation. This is not dense attention and does not replace NaNs with zeros.
+Workspace is limited to one head and 128 sampled query rows. Reference recovery
+can be substantially slower; recovered layers are recorded in each policy JSON.
+If Q/K or sparse-attention output is nonfinite, the sweep stops with the layer
+and stage instead of saving a loss. Production RULER/LongBench code is unchanged.
+
+An exact known failed prior version may resume only if no policy losses have
+been saved. Runs with completed results require a new output directory when the
+source changes. Run `python experiments5/kernel_task_sweep/test_sweep.py` in
+`fyc_qwen` to execute the additional CPU PyTorch numerical-oracle test; that
+test is skipped when PyTorch is unavailable. GPU validation is still required.
+

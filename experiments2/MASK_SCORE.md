@@ -82,3 +82,19 @@ python experiments2/run_mask_score.py --plot-only \
 
 This repository addition has CPU tests; real CUDA inference must be run on the
 server. No measured orange map is provided before that experiment completes.
+
+## Larger-font replot (no model or GPU required)
+
+```bash
+python experiments2/replot_mask_score.py \
+  --input-dir output/ruler_observation/mask_score_layer14_head8
+```
+
+The independent script reads the completed experiment's metadata and saved
+color classes (or reconstructs them from the baseline mask and trial log).
+It preserves every block's class and writes `mask_score_large_fonts.png`,
+`.pdf`, and `.svg` into `./acl_revision/Figs`, without overwriting the original result.
+Default title/axis/tick/legend sizes are 22/20/17/15 pt; edit the constants
+at the top of the script or use `--font-scale 1.1` to enlarge them further.
+Use `--output-prefix figures/mask_score_large_fonts` to choose another
+destination; the prefix should not include an extension.
