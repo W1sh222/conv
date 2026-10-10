@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "experiment": 3,
+  "arguments": {
+    "model": "/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Qwen3-8B",
+    "data": "experiments3/datasets/qwen9750_vt131072_5samples_seed20261008/observation.jsonl",
+    "conv_weights": "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn/qwen_weights/conv_qwen3_t065_64k128k_balanced_v3/stage3_extend_96k128k_t065_s8_yarn4_bf16_ema_step9750.pt",
+    "learned_policy_name": "learned_9750",
+    "sample_indices": "0,1,2,3,4",
+    "layers": "16",
+    "heads": "8",
+    "query_blocks": "last",
+    "ratio": 0.65,
+    "stride": 8,
+    "background": "sparse",
+    "device_map": "auto",
+    "dtype": "bfloat16",
+    "chat_template": false,
+    "rope_factor": 4.0,
+    "rope_original_length": 32768,
+    "max_position_embeddings": null,
+    "max_prompt_tokens": 0,
+    "max_label_tokens": 0,
+    "seed": 42,
+    "loss_tolerance": 1e-05,
+    "max_candidates": 0,
+    "top_sizes": "5,10,20",
+    "all_pairs": false,
+    "selector": "initial",
+    "query_block": "last",
+    "layer": 16,
+    "head": 8
+  },
+  "data_sha256": "95020e6588ac08e0412787f7cb32ef7ecc9c15109772f19f404595e6fa53ac09",
+  "weight_sha256": "61d0e27e859aab2f2171106c3e5d4780c6d8558516ff7b4ef0ee44f5303a05bf",
+  "engine_sha256": {
+    "experiment_common.py": "da571cf7c5fdded19e00fc2e558b4679c0a244cbe876d9cabf7958c4f39c97f1",
+    "analysis_core.py": "d7165eeff54f297a5d442b8e2f489f49cfb0ca4d93e31adc64f5d58c10b77bf8",
+    "resume_state.py": "b63d70a6018e33b088dd84e198d414df6291d6470471e78066db59ff26f0241c"
+  },
+  "model_metadata_sha256": {
+    "config.json": "f7c4eadfbbf522470667b797a3c89be2524832d2d599797248dc304fff447c30",
+    "tokenizer_config.json": "5a7303fcb1a27ede63134a2cbd61d5282c247ca6d769ce4746d4ffa124aedd63",
+    "tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+  }
+}

@@ -1,0 +1,2 @@
+﻿input_id,case,sample_index,layer,head,query,initial_spearman,learned_spearman,spearman_gain
+ae5039b4589b7c5502b5b5004463d0a5fb38fa12276645fd49da3354cdd6ab1b,s0_l16_h8_qlast,0,16,8,last,-0.007164892640364292,-0.019238948896269047,-0.012074056255904755
