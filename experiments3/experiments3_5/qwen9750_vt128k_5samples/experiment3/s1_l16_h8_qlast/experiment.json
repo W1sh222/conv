@@ -40,7 +40,7 @@
   "prompt_tokens": 130844,
   "loss_definition": "Mean teacher-forced label-token NLL; prompt-only sparse prefill; fresh KV each trial; no EOS",
   "score_definition": "Repository antidiagonal estimator; initial baseline is not the complete XAttention policy",
-  "status": "running",
+  "status": "complete",
   "scope": "single layer/head/query row with all other masks frozen",
   "weight_sha256": "61d0e27e859aab2f2171106c3e5d4780c6d8558516ff7b4ef0ee44f5303a05bf",
   "versions": {
@@ -53,5 +53,91 @@
   "model_path": "/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Qwen3-8B",
   "weight_path": "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn/qwen_weights/conv_qwen3_t065_64k128k_balanced_v3/stage3_extend_96k128k_t065_s8_yarn4_bf16_ema_step9750.pt",
   "learned_policy": "learned_9750",
-  "topk_ratio": 0.65
+  "topk_ratio": 0.65,
+  "baseline": {
+    "label_loss": 1.0152039341014734,
+    "token_losses": [
+      17.475723266601562,
+      5.4834770708112046e-05,
+      5.006777428206988e-06,
+      3.671578815556131e-05,
+      2.066105604171753,
+      2.3077690601348877,
+      0.0012254356406629086,
+      2.3841830625315197e-06,
+      3.4927710657939315e-05,
+      0.00038115866482257843,
+      0.005627740640193224,
+      3.45700973412022e-05,
+      2.1219027985353023e-05,
+      3.6000557884108275e-05,
+      0.00018046658078674227,
+      0.0022845377679914236,
+      7.068861305015162e-05,
+      1.3947389561508317e-05,
+      0.0002873722987715155,
+      0.4745901823043823,
+      1.1920922133867862e-06,
+      2.3841855067985307e-07
+    ],
+    "teacher_forced_argmax_ids": [
+      472,
+      57,
+      1162,
+      39,
+      467,
+      1599,
+      78610,
+      57,
+      42,
+      11,
+      1599,
+      52,
+      41,
+      17625,
+      11,
+      472,
+      1511,
+      25459,
+      11,
+      65269,
+      56,
+      3588
+    ]
+  },
+  "metrics": {
+    "candidate_count": 358,
+    "initial_spearman": 0.10490580422953713,
+    "learned_spearman": 0.12837011457265793,
+    "top_candidates": [
+      {
+        "requested_pool_top_n": 5,
+        "actual_pool_top_n": 5,
+        "initial_mean_utility": 0.0018334520297768274,
+        "initial_improvement_fraction": 0.8,
+        "learned_mean_utility": 0.0009266848665633986,
+        "learned_improvement_fraction": 0.6
+      },
+      {
+        "requested_pool_top_n": 10,
+        "actual_pool_top_n": 10,
+        "initial_mean_utility": 0.0015068326661812792,
+        "initial_improvement_fraction": 0.7,
+        "learned_mean_utility": 0.000583424361560092,
+        "learned_improvement_fraction": 0.4
+      },
+      {
+        "requested_pool_top_n": 20,
+        "actual_pool_top_n": 20,
+        "initial_mean_utility": 0.0019674803681527355,
+        "initial_improvement_fraction": 0.6,
+        "learned_mean_utility": 0.0009727014956755098,
+        "learned_improvement_fraction": 0.4
+      }
+    ],
+    "effective_tolerance": 1e-05,
+    "baseline_repeat_drift": 0.0,
+    "full_candidate_count": 358,
+    "exhaustive": true
+  }
 }

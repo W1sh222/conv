@@ -78,7 +78,11 @@ def render(directory, prefix, scale=1.0, dpi=600):
     })
     fig = plt.figure(figsize=FIGURE_SIZE)
     width = .83
+<<<<<<< HEAD
     ax = fig.add_axes([.14, .105, width, width * FIGURE_SIZE[0] / FIGURE_SIZE[1]])
+=======
+    ax = fig.add_axes([.14, .23, width, width * FIGURE_SIZE[0] / FIGURE_SIZE[1]])
+>>>>>>> 31e89147590bc7beb7459bf713488aa48b6f8a81
     ax.imshow(colors, cmap=ListedColormap(PALETTE),
               norm=BoundaryNorm(np.arange(-.5, 4.5), 4),
               interpolation='nearest', origin='upper', aspect='equal')
@@ -95,10 +99,16 @@ def render(directory, prefix, scale=1.0, dpi=600):
               'Unselected: no lower loss', 'Causally masked']
     handles = [Patch(facecolor=PALETTE[i], edgecolor='#777777', linewidth=1,
                      label=label) for i, label in zip([1, 2, 0, 3], labels)]
+<<<<<<< HEAD
     ax.legend(handles=handles, loc='upper right', bbox_to_anchor=(.98, .98),
               ncol=1, frameon=False, fontsize=LEGEND_SIZE * scale,
               handlelength=1.5, handletextpad=.65, labelspacing=.8,
               borderaxespad=.3)
+=======
+    fig.legend(handles=handles, loc='lower center', bbox_to_anchor=(.54, .045),
+               ncol=2, frameon=False, fontsize=LEGEND_SIZE * scale,
+               columnspacing=1.15, handlelength=1.5, handletextpad=.65, labelspacing=.65)
+>>>>>>> 31e89147590bc7beb7459bf713488aa48b6f8a81
     prefix.parent.mkdir(parents=True, exist_ok=True)
     fig.canvas.draw()
     # Save the final rendered plot rectangle for reproducible layout inspection.

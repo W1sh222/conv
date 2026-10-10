@@ -1,0 +1,10 @@
+{
+  "data_sha256": "6c98bb7d78c034415cab1d9ecead55c11940c5e34f7b2855e049ae50a1d77ab1",
+  "input_count": 8,
+  "tasks": [
+    "qa_2",
+    "fwe",
+    "niah_single_1",
+    "niah_multikey_1"
+  ]
+}

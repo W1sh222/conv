@@ -1,0 +1,21 @@
+{
+  "policy": "fixed_1x1",
+  "label_loss": 13.432537078857422,
+  "token_losses": [
+    13.432537078857422
+  ],
+  "teacher_forced_argmax_ids": [
+    2360
+  ],
+  "repeat_drift": 0.0,
+  "prompt_tokens": 130638,
+  "label_tokens": 1,
+  "mask_backend": "cpu",
+  "score_estimator": "fused sampling with FP32 sampled reference on nonfinite scores",
+  "reference_estimator_layers": [],
+  "tie_rule": "lower key-block index first",
+  "scope": "All layers/heads; each policy selects on its own activations; prompt-only sparse prefill",
+  "task": "qa_2",
+  "sample_index": 0,
+  "status": "complete"
+}
