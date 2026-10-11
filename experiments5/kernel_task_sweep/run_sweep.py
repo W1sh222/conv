@@ -24,6 +24,32 @@ MODEL_LOAD_BUG_HASHES={
     '8ddf799b45b8828766924a899bc2a79ef994d77ce17d19518e6fde6de3df2d52',
     'e91bc0957e8dd6e0b73ee73e81b6cd1302860178972cddcce2f140ecb1771090',
 }
+SKIP_CONTROL_UPGRADE_HASHES={
+    'eb48412f9f5774510856d8b922aeb858af1371e8b3720175487a9373da2bef2f',
+    '0218a1b195470247a03c162427f6fda713c3c93462b964ed946e09d1c47ccadc',
+}
+
+
+def skippable_numerical_error(exc):
+    # Never swallow CUDA device assertions, OOM, configuration or I/O errors.
+    prefixes=('Nonfinite Q/K before scoring:', 'FP32 reference estimator also nonfinite:',
+              'Nonfinite refined causal scores:', 'Nonfinite sparse attention output:')
+    return ((isinstance(exc,ValueError) and str(exc).startswith(prefixes)) or
+            (isinstance(exc,RuntimeError) and str(exc)=='Non-finite label loss'))
+
+
+def paired_summary(results,inputs,tasks,policies,failures):
+    excluded={(r['task'],r['sample_index']) for r in failures}
+    paired=[r for r in results if (r['task'],r['sample_index']) not in excluded]
+    counts={t:sum(i['task']==t and (t,i['sample_index']) not in excluded for i in inputs) for t in tasks}
+    if all(counts.values()):summary=summarize(paired,tasks,policies)
+    else:summary=dict(tasks=tasks,policies=policies,task_mean_nll={},macro_mean_nll=None,
+                      samples_per_task=counts,reason='At least one task has no jointly successful input; macro comparison unavailable')
+    summary.update(status='complete_with_skips' if failures else 'complete',failures=failures,
+                   excluded_samples=[dict(task=t,sample_index=s) for t,s in sorted(excluded)],
+                   comparison_scope='Same jointly successful inputs for every kernel; failed inputs excluded from all kernels',
+                   attempted_samples=len(inputs),paired_samples=sum(counts.values()))
+    return summary
 
 
 def reference_sampled_scores(q,k,torch,block_size=128,stride=8,norm=1.0,chunk_size=0,causal=True):
@@ -114,6 +140,14 @@ def ensure_run_manifest(out,identity,resume):
             upgraded['source_sha256'][source_key]=identity['source_sha256'][source_key]
         if 'mask_backend' in identity.get('arguments',{}):
             upgraded['arguments'].setdefault('mask_backend','cpu')
+        # This narrowly identified update changes only failure handling and
+        # aggregation, preserving all numerical evaluation code and saved losses.
+        if old_hash in SKIP_CONTROL_UPGRADE_HASHES and upgraded==identity:
+            backup=out/'run_manifest.before_skip_fix.json'
+            if not backup.exists():atomic_json(backup,prior)
+            atomic_json(manifest,identity)
+            print('Enabled numerical-failure skipping; existing successful losses preserved',flush=True)
+            return
         # The reported failure occurred before the first model was loaded. Only
         # migrate that exact engine version if no policy result has been saved.
         if (old_hash not in MODEL_LOAD_BUG_HASHES or upgraded!=identity
@@ -308,9 +342,17 @@ def main():
                    ROOT/'ft_scripts/sparse_ruler/conv_sparse_ops.py']},
               'model_metadata':{n:file_hash(Path(a.model)/n) for n in ('config.json','tokenizer_config.json','tokenizer.json') if (Path(a.model)/n).is_file()}}
     ensure_run_manifest(out,identity,a.resume)
-    env=None;results=[]
+    env=None;results=[];failures=[]
     for item in inputs:
         case=out/item['task']/f"s{item['sample_index']}";case.mkdir(parents=True,exist_ok=True)
+        failure_path=case/'failed_sample.json'
+        if failure_path.is_file():
+            failure=json.loads(failure_path.read_text())
+            if failure.get('status')!='failed' or failure.get('task')!=item['task'] or failure.get('sample_index')!=item['sample_index']:
+                raise ValueError('Invalid failure record: '+str(failure_path))
+            failures.append(failure)
+            print('Skipping previously failed sample',item['task'],item['sample_index'],flush=True)
+            continue
         for policy in policies:
             path=case/(policy+'.json')
             if path.is_file():
@@ -324,14 +366,28 @@ def main():
             else:
                 if env is None:env=setup(a)
                 print('Evaluating',item['task'],item['sample_index'],policy,flush=True)
-                result=evaluate_policy(a,env,item,policy)
+                try:result=evaluate_policy(a,env,item,policy)
+                except (ValueError,RuntimeError) as exc:
+                    if not skippable_numerical_error(exc):raise
+                    failure=dict(task=item['task'],sample_index=item['sample_index'],policy=policy,
+                                 status='failed',error_type=type(exc).__name__,error=str(exc))
+                    diagnostic=out/'nonfinite_diagnostic.json'
+                    if isinstance(exc,ValueError) and diagnostic.is_file():
+                        failure['diagnostic']=json.loads(diagnostic.read_text())
+                    atomic_json(failure_path,failure);failures.append(failure)
+                    common.csv_file(out/'failed_samples.csv',failures)
+                    print('Skipping numerically failed sample:',item['task'],item['sample_index'],policy,str(exc),flush=True)
+                    break
                 result.update(task=item['task'],sample_index=item['sample_index'],status='complete')
                 atomic_json(path,result)
             results.append(result);common.csv_file(out/'individual_losses.csv',results)
-    summary=summarize(results,tasks,policies);summary.update(data_sha256=identity['data_sha256'],weight_sha256=identity['weight_sha256'])
+    summary=paired_summary(results,inputs,tasks,policies,failures)
+    summary.update(data_sha256=identity['data_sha256'],weight_sha256=identity['weight_sha256'])
     atomic_json(out/'summary.json',summary)
-    common.csv_file(out/'task_mean_losses.csv',[dict(task=t,**summary['task_mean_nll'][t]) for t in tasks]+
-                    [dict(task='Macro average',**summary['macro_mean_nll'])])
+    common.csv_file(out/'failed_samples.csv',failures)
+    if summary['macro_mean_nll'] is not None:
+        common.csv_file(out/'task_mean_losses.csv',[dict(task=t,**summary['task_mean_nll'][t]) for t in tasks]+
+                        [dict(task='Macro average',**summary['macro_mean_nll'])])
     print(json.dumps(summary,indent=2))
 
 

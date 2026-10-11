@@ -140,3 +140,14 @@ source changes. Run `python experiments5/kernel_task_sweep/test_sweep.py` in
 `fyc_qwen` to execute the additional CPU PyTorch numerical-oracle test; that
 test is skipped when PyTorch is unavailable. GPU validation is still required.
 
+
+Numerical failures now skip the entire input (all remaining kernels), saving
+`TASK/sN/failed_sample.json` and `failed_samples.csv`. Existing successful
+policy files are preserved. Resume skips recorded failed inputs automatically.
+Summary averages exclude that input from every kernel, using identical paired
+samples and reporting exclusions. Status is `complete_with_skips`; if any task
+has no paired input, the macro average is unavailable rather than silently
+averaging fewer tasks. OOM, CUDA assertions and unrelated errors remain fatal.
+The known preceding estimator-repair version can upgrade its manifest while
+preserving completed losses, because this change affects failure control and
+aggregation only. Failed-input exclusions must be reported alongside comparisons.

@@ -14,6 +14,41 @@ from sweep_core import convert, summarize, SIZES
 
 
 class SweepTests(unittest.TestCase):
+    def test_skip_numerical_sample_and_resume_preserves_successes(self):
+        import run_sweep
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);data=root/'data.jsonl';out=root/'out'
+            data.write_text('\n'.join(json.dumps(dict(task='fwe',sample_index=i,prompt='fixture',label='fixture')) for i in range(2)))
+            command=['run_sweep.py','--fixed-only','--data',str(data),'--output',str(out),
+                     '--model',str(root/'model'),'--tasks','fwe','--samples-per-task','2','--resume']
+            def simulated(a,env,item,policy):
+                if item['sample_index']==0 and policy=='fixed_9x9':
+                    raise ValueError('Nonfinite Q/K before scoring: fixture')
+                return dict(policy=policy,label_loss=1.,token_losses=[1.],repeat_drift=0.)
+            with contextlib.redirect_stdout(io.StringIO()),mock.patch.object(sys,'argv',command),\
+                 mock.patch.object(run_sweep,'setup',return_value='CPU fixture'),\
+                 mock.patch.object(run_sweep,'evaluate_policy',side_effect=simulated):run_sweep.main()
+            self.assertTrue((out/'fwe/s0/fixed_7x7.json').is_file())
+            self.assertTrue((out/'fwe/s0/failed_sample.json').is_file())
+            self.assertFalse((out/'fwe/s0/fixed_11x11.json').exists())
+            summary=json.loads((out/'summary.json').read_text())
+            self.assertEqual(summary['status'],'complete_with_skips')
+            self.assertEqual(summary['samples_per_task'],{'fwe':1})
+            with contextlib.redirect_stdout(io.StringIO()),mock.patch.object(sys,'argv',command),\
+                 mock.patch.object(run_sweep,'setup') as setup,\
+                 mock.patch.object(run_sweep,'evaluate_policy') as evaluate:run_sweep.main()
+            setup.assert_not_called();evaluate.assert_not_called()
+
+    def test_skip_is_narrow_and_empty_task_has_no_macro(self):
+        from run_sweep import skippable_numerical_error,paired_summary
+        self.assertTrue(skippable_numerical_error(RuntimeError('Non-finite label loss')))
+        for exc in (RuntimeError('CUDA device-side assert triggered'),RuntimeError('CUDA out of memory'),
+                    ValueError('Invalid saved input-policy result'),OSError('disk failure')):
+            self.assertFalse(skippable_numerical_error(exc))
+        summary=paired_summary([], [{'task':'fwe','sample_index':0}],['fwe'],['fixed_1x1'],
+                               [{'task':'fwe','sample_index':0}])
+        self.assertIsNone(summary['macro_mean_nll'])
+
     def test_reference_sampling_matches_explicit_antidiagonal_oracle(self):
         try:import torch
         except ImportError:self.skipTest('PyTorch unavailable; run this numerical test in fyc_qwen')
