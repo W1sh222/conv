@@ -151,3 +151,25 @@ averaging fewer tasks. OOM, CUDA assertions and unrelated errors remain fatal.
 The known preceding estimator-repair version can upgrade its manifest while
 preserving completed losses, because this change affects failure control and
 aggregation only. Failed-input exclusions must be reported alongside comparisons.
+
+## Complete RULER task coverage
+
+The task registry now supports all 13 standard task keys. Four-task defaults
+remain unchanged. QA1 and QA2 serialize the first alternative reference; all
+retrieval/extraction/tracking tasks serialize required items in generator order.
+`run_kernel_task_sweep_ruler_all.sh --resume` runs only the remaining nine tasks
+in separate data/results directories, preserving the completed original sweep.
+`--all-tasks --resume` runs all 13 anew in another directory. Both modes default
+to Llama 128K, two inputs/task, six fixed kernels, ratio 0.65 and stride 8.
+The task-registry/source fingerprint has changed: do not point this new run at
+the completed original data/results directories. Resume new runs only with
+the same configuration and source version.
+
+After the remaining nine tasks finish, `merge_task_sweeps.py --inputs OLD NEW
+--output EMPTY_DIRECTORY` exports a 13-task summary and CSV without modifying
+source runs. It verifies matching policies, inference arguments, model/checkpoint
+provenance and unchanged shared numerical helper hashes. Task sets must be
+disjoint and cover all 13 tasks. Each source summary must be finished; failed
+inputs are excluded consistently from all policies, and missing tasks do not
+silently disappear from the macro average. Complete results are NLL diagnostics,
+not the standard RULER free-generation benchmark scores.

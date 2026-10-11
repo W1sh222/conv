@@ -10,7 +10,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'experiments3'))
 from resume_state import atomic_json, file_hash
-from sweep_core import TASKS, convert
+from sweep_core import TASKS, ALL_TASKS, convert
 
 PATH_BUG_SOURCE_HASHES = {
     '22bc014304b1aaa8680000054a007be76546346d5cc2d5d4d49fb3d929890bd2',
@@ -72,7 +72,7 @@ def main():
     # relative to this process's cwd. Keep the original spelling for provenance.
     requested_output=a.output
     a.output=a.output.resolve()
-    if not tasks or len(set(tasks))!=len(tasks) or any(t not in TASKS for t in tasks): raise ValueError('Invalid task list')
+    if not tasks or len(set(tasks))!=len(tasks) or any(t not in ALL_TASKS for t in tasks): raise ValueError('Invalid task list')
     if a.num_samples<1 or a.seq_length<4096: raise ValueError('Invalid sample count/context')
     if a.dry_run:
         print(json.dumps(vars(a),default=str,indent=2));return
@@ -87,7 +87,8 @@ def main():
     ruler=ROOT/'eval/RULER/scripts'
     identity['generator_sources']={str(p.relative_to(ROOT)):file_hash(p) for p in
         [Path(__file__),ruler/'synthetic.yaml',ruler/'data/template.py',ruler/'data/synthetic/constants.py',
-         ruler/'data/synthetic/qa.py',ruler/'data/synthetic/niah.py',ruler/'data/synthetic/freq_words_extraction.py']}
+         ruler/'data/synthetic/qa.py',ruler/'data/synthetic/niah.py',ruler/'data/synthetic/freq_words_extraction.py',
+         ruler/'data/synthetic/variable_tracking.py',ruler/'data/synthetic/common_words_extraction.py']}
     legacy_allowed=ensure_manifest(a.output,identity,str(Path(__file__).relative_to(ROOT)))
     if requested_output.is_absolute():
         try: legacy_output=requested_output.relative_to(ROOT)

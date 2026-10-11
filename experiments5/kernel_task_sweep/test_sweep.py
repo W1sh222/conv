@@ -14,6 +14,38 @@ from sweep_core import convert, summarize, SIZES
 
 
 class SweepTests(unittest.TestCase):
+    def test_all_ruler_tasks_and_qa_alternative_serialization(self):
+        from sweep_core import TASKS,ALL_TASKS
+        self.assertEqual(len(ALL_TASKS),13)
+        self.assertEqual(len(set(ALL_TASKS)-set(TASKS)),9)
+        row={'input':'fixture','outputs':['a','b']}
+        for task in ALL_TASKS:
+            self.assertEqual(convert(row,task)['label'], 'a' if task.startswith('qa_') else 'a, b')
+        with self.assertRaises(ValueError):convert(row,'unknown')
+
+    def test_merge_disjoint_task_runs_and_reject_different_budget(self):
+        from merge_task_sweeps import merge
+        from run_sweep import paired_summary
+        from sweep_core import TASKS,ALL_TASKS
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);directories=[]
+            for name,tasks in [('old',list(TASKS)),('new',[t for t in ALL_TASKS if t not in TASKS])]:
+                directory=root/name;directory.mkdir();directories.append(directory)
+                rows=[];inputs=[];policies=['fixed_1x1','fixed_3x3']
+                for task in tasks:
+                    case=directory/task/'s0';case.mkdir(parents=True);inputs.append(dict(task=task,sample_index=0))
+                    for policy,loss in zip(policies,[2.,1.]):
+                        row=dict(task=task,sample_index=0,policy=policy,status='complete',label_loss=loss,token_losses=[loss])
+                        (case/(policy+'.json')).write_text(json.dumps(row));rows.append(row)
+                (directory/'summary.json').write_text(json.dumps(paired_summary(rows,inputs,tasks,policies,[])))
+                (directory/'run_manifest.json').write_text(json.dumps(dict(arguments=dict(tasks=','.join(tasks),data=name,ratio=.65),
+                    model_metadata={},weight_sha256=None,source_sha256={'unchanged.py':'same'})))
+            with contextlib.redirect_stdout(io.StringIO()):merge(directories,root/'merged')
+            summary=json.loads((root/'merged/summary.json').read_text())
+            self.assertEqual(summary['paired_samples'],13)
+            self.assertEqual(summary['macro_mean_nll']['fixed_3x3'],1.)
+            p=directories[1]/'run_manifest.json';m=json.loads(p.read_text());m['arguments']['ratio']=.7;p.write_text(json.dumps(m))
+            with self.assertRaises(ValueError):merge(directories,root/'bad')
     def test_skip_numerical_sample_and_resume_preserves_successes(self):
         import run_sweep
         with tempfile.TemporaryDirectory() as tmp:
@@ -159,7 +191,8 @@ class SweepTests(unittest.TestCase):
             fake_script.parent.mkdir(parents=True);fake_script.write_text('test source')
             fake_script.with_name('sweep_core.py').write_text('test converter')
             for path in [scripts/'synthetic.yaml',data/'template.py',synthetic/'constants.py',
-                         synthetic/'niah.py',synthetic/'freq_words_extraction.py']:
+                         synthetic/'niah.py',synthetic/'freq_words_extraction.py',
+                         synthetic/'variable_tracking.py',synthetic/'common_words_extraction.py']:
                 path.write_text('fixture')
             # A real child process has the generator cwd and checks its path arguments.
             (synthetic/'qa.py').write_text('''import argparse,json

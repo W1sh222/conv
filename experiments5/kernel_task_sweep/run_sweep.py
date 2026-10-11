@@ -14,7 +14,7 @@ sys.path.insert(0,str(ROOT/'experiments3'))
 import experiment_common as common
 from analysis_core import fixed_vertical_diagonal_kernel, validate_checkpoint_layout
 from resume_state import atomic_json, file_hash
-from sweep_core import TASKS, SIZES, summarize
+from sweep_core import TASKS, ALL_TASKS, SIZES, summarize
 
 MODEL_LOAD_BUG_HASHES={
     '50cb9ff5230113acabeac8b1284788a671369624bb0eeb029e935ca77ed03b05',
@@ -312,7 +312,7 @@ def evaluate_policy(a,env,item,policy):
 def main():
     a=parser().parse_args();sizes=[int(x) for x in a.kernel_sizes.split(',')];tasks=a.tasks.split(',')
     if not sizes or sizes[0]!=1 or len(set(sizes))!=len(sizes) or any(s not in SIZES for s in sizes):raise ValueError('Sizes must start with 1, be unique and drawn from 1,3,5,7,9,11')
-    if len(set(tasks))!=len(tasks) or not tasks or any(t not in TASKS for t in tasks):raise ValueError('Invalid tasks')
+    if len(set(tasks))!=len(tasks) or not tasks or any(t not in ALL_TASKS for t in tasks):raise ValueError('Invalid tasks')
     if a.samples_per_task<1 or not 0<a.ratio<1 or a.stride<=0 or 128%a.stride:raise ValueError('Invalid sample count/budget/stride')
     if a.background!='sparse' or a.chat_template or a.max_label_tokens or a.max_prompt_tokens:
         raise ValueError('Use full sparse policies and prepared templates without token truncation')

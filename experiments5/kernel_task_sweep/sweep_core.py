@@ -2,11 +2,14 @@
 import math
 
 TASKS = ('qa_2', 'fwe', 'niah_single_1', 'niah_multikey_1')
+ALL_TASKS = ('niah_single_1', 'niah_single_2', 'niah_single_3',
+             'niah_multikey_1', 'niah_multikey_2', 'niah_multikey_3',
+             'niah_multivalue', 'niah_multiquery', 'vt', 'cwe', 'fwe', 'qa_1', 'qa_2')
 SIZES = (1, 3, 5, 7, 9, 11)
 
 
 def convert(row, task):
-    if task not in TASKS:
+    if task not in ALL_TASKS:
         raise ValueError('Unsupported task: ' + task)
     prompt, answers = row.get('input'), row.get('outputs')
     if not isinstance(prompt, str) or not prompt.strip():
@@ -14,10 +17,11 @@ def convert(row, task):
     if not isinstance(answers, list) or not answers or any(not isinstance(x, str) or not x.strip() for x in answers):
         raise ValueError('Missing RULER reference answers')
     # QA outputs are alternatives; extraction outputs are jointly required items.
-    label = answers[0] if task == 'qa_2' else ', '.join(answers)
+    is_qa = task in ('qa_1', 'qa_2')
+    label = answers[0] if is_qa else ', '.join(answers)
     return {'prompt': prompt, 'label': label, 'task': task,
             'ruler_outputs': answers, 'ruler_index': row.get('index'),
-            'label_rule': 'first reference; no EOS' if task == 'qa_2' else
+            'label_rule': 'first reference; no EOS' if is_qa else
                           'all outputs in generator order, comma-space separated; no EOS'}
 
 
