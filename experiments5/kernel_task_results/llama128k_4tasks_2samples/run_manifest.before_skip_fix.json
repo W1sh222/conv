@@ -1,0 +1,53 @@
+{
+  "arguments": {
+    "model": "/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct",
+    "data": "experiments5/kernel_task_data/llama_131072_2samples_seed20261008/observation.jsonl",
+    "conv_weights": null,
+    "learned_policy_name": "learned_checkpoint",
+    "sample_indices": "0",
+    "layers": "16",
+    "heads": "8",
+    "query_blocks": "last",
+    "ratio": 0.65,
+    "stride": 8,
+    "background": "sparse",
+    "device_map": "auto",
+    "dtype": "bfloat16",
+    "chat_template": false,
+    "rope_factor": null,
+    "rope_original_length": 32768,
+    "max_position_embeddings": null,
+    "max_prompt_tokens": 0,
+    "max_label_tokens": 0,
+    "seed": 42,
+    "loss_tolerance": 1e-05,
+    "max_candidates": 0,
+    "top_sizes": "5,10,20",
+    "all_pairs": false,
+    "kernel_sizes": "1,3,5,7,9,11",
+    "tasks": "qa_2,fwe,niah_single_1,niah_multikey_1",
+    "samples_per_task": 2,
+    "fixed_only": true,
+    "seq_length": 131072,
+    "mask_backend": "cpu",
+    "layer": 16,
+    "head": 8,
+    "query_block": "last",
+    "selector": "initial"
+  },
+  "data_sha256": "6c98bb7d78c034415cab1d9ecead55c11940c5e34f7b2855e049ae50a1d77ab1",
+  "weight_sha256": null,
+  "source_sha256": {
+    "experiments5/kernel_task_sweep/run_sweep.py": "eb48412f9f5774510856d8b922aeb858af1371e8b3720175487a9373da2bef2f",
+    "experiments5/kernel_task_sweep/sweep_core.py": "d2f80406821ec0b8de345f5fc7c3cb0b40df5d6914e33b836de5e598a15efd65",
+    "experiments3/analysis_core.py": "d7165eeff54f297a5d442b8e2f489f49cfb0ca4d93e31adc64f5d58c10b77bf8",
+    "experiments3/experiment_common.py": "da571cf7c5fdded19e00fc2e558b4679c0a244cbe876d9cabf7958c4f39c97f1",
+    "experiments/block_label_swap/run_experiment.py": "47182d5501291d6bdda2877cd1822a5dcc0d8860755942ecc71bea875bafc681",
+    "ft_scripts/sparse_ruler/conv_sparse_ops.py": "512446d2bc8924d16123048fae03ee405159129458aa92c85e89253855957d95"
+  },
+  "model_metadata": {
+    "config.json": "29e4c210b0d6ac178b16b2a255a568bdb23b581e50ca1ef6a6d071dd85704e6e",
+    "tokenizer_config.json": "177c7b61e616fecb84c17ce0591acb92c6c4d60e9ac5ababfb940ff23bbcd424",
+    "tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4"
+  }
+}

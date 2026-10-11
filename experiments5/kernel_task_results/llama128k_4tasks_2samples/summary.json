@@ -1,0 +1,81 @@
+{
+  "tasks": [
+    "qa_2",
+    "fwe",
+    "niah_single_1",
+    "niah_multikey_1"
+  ],
+  "policies": [
+    "fixed_1x1",
+    "fixed_3x3",
+    "fixed_5x5",
+    "fixed_7x7",
+    "fixed_9x9",
+    "fixed_11x11"
+  ],
+  "task_mean_nll": {
+    "qa_2": {
+      "fixed_1x1": 9.130274077256521,
+      "fixed_3x3": 9.662318845589956,
+      "fixed_5x5": 6.030762881040573,
+      "fixed_7x7": 9.52875349422296,
+      "fixed_9x9": 8.967501719792685,
+      "fixed_11x11": 9.572868665059408
+    },
+    "fwe": {
+      "fixed_1x1": 1.036348072801447,
+      "fixed_3x3": 1.003777299767215,
+      "fixed_5x5": 1.0704098582527777,
+      "fixed_7x7": 1.054636134251648,
+      "fixed_9x9": 1.0198341513826632,
+      "fixed_11x11": 1.0344433154823092
+    },
+    "niah_single_1": {
+      "fixed_1x1": 5.9653116246433155,
+      "fixed_3x3": 5.7097875885992835,
+      "fixed_5x5": 5.88545595111888,
+      "fixed_7x7": 5.8057050025557455,
+      "fixed_9x9": 5.878488370276803,
+      "fixed_11x11": 5.940686383236122
+    },
+    "niah_multikey_1": {
+      "fixed_1x1": 4.633570785168558,
+      "fixed_3x3": 4.356524943800954,
+      "fixed_5x5": 4.1870213473060485,
+      "fixed_7x7": 4.876115327118896,
+      "fixed_9x9": 4.73865034400175,
+      "fixed_11x11": 4.78594168376488
+    }
+  },
+  "macro_mean_nll": {
+    "fixed_1x1": 5.191376139967461,
+    "fixed_3x3": 5.183102169439353,
+    "fixed_5x5": 4.2934125094295705,
+    "fixed_7x7": 5.316302489537312,
+    "fixed_9x9": 5.151118646363475,
+    "fixed_11x11": 5.33348501188568
+  },
+  "samples_per_task": {
+    "qa_2": 2,
+    "fwe": 2,
+    "niah_single_1": 2,
+    "niah_multikey_1": 2
+  },
+  "macro_nll_decrease_from_1x1": {
+    "fixed_1x1": 0.0,
+    "fixed_3x3": 0.008273970528107633,
+    "fixed_5x5": 0.8979636305378902,
+    "fixed_7x7": -0.1249263495698516,
+    "fixed_9x9": 0.04025749360398567,
+    "fixed_11x11": -0.14210887191821886
+  },
+  "definition": "mean answer-token NLL within input; mean over inputs within task; equal-weight mean over tasks",
+  "status": "complete",
+  "failures": [],
+  "excluded_samples": [],
+  "comparison_scope": "Same jointly successful inputs for every kernel; failed inputs excluded from all kernels",
+  "attempted_samples": 8,
+  "paired_samples": 8,
+  "data_sha256": "6c98bb7d78c034415cab1d9ecead55c11940c5e34f7b2855e049ae50a1d77ab1",
+  "weight_sha256": null
+}

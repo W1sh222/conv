@@ -1,0 +1,21 @@
+{
+  "layer": 27,
+  "policy": "fixed_9x9",
+  "stage": "raw_score_estimator",
+  "score_shape": [
+    1,
+    32,
+    1024,
+    1024
+  ],
+  "nonfinite_scores": 1349745,
+  "q_nonfinite": 61857,
+  "k_nonfinite": 91720,
+  "meta": {
+    "q_real_blocks": 1023,
+    "k_real_blocks": 1023,
+    "q_full_blocks": 1024,
+    "k_full_blocks": 1024,
+    "num_blocks_per_chunk": 16
+  }
+}
