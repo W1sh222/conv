@@ -1,0 +1,27 @@
+{
+  "policy": "fixed_1x1",
+  "diagnostic": {
+    "layer": 5,
+    "policy": "fixed_1x1",
+    "stage": "prefill_or_output_synchronization",
+    "q_shape": [
+      1,
+      32,
+      130341,
+      128
+    ],
+    "k_shape": [
+      1,
+      32,
+      130341,
+      128
+    ],
+    "v_shape": [
+      1,
+      32,
+      130341,
+      128
+    ],
+    "error": "CUDA error: an illegal memory access was encountered\nCUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1\nCompile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.\n"
+  }
+}

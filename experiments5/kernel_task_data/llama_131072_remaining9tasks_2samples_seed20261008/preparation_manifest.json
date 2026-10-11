@@ -1,0 +1,21 @@
+{
+  "model": "/inspire/hdd/global_user/gexinmu-253108100065/Resources/models/LLMs/Llama-3.1-8B-Instruct",
+  "tasks": "niah_single_2,niah_single_3,niah_multikey_2,niah_multikey_3,niah_multivalue,niah_multiquery,vt,cwe,qa_1",
+  "num_samples": 2,
+  "seq_length": 131072,
+  "seed": 20261008,
+  "raw_data_dir": null,
+  "model_config_sha256": "29e4c210b0d6ac178b16b2a255a568bdb23b581e50ca1ef6a6d071dd85704e6e",
+  "converter_sha256": "4cfa2b3a0505a24d83ad1176cc350d96b2fc0df59fe9cb473064cf1c1cb51bc3",
+  "generator_sources": {
+    "experiments5/kernel_task_sweep/prepare_data.py": "7a0cb195a35f27d7803af181f581c402ff2d43aedf4c2c11936f91572020958d",
+    "eval/RULER/scripts/synthetic.yaml": "916888bcffdaa49dcc0d0c65539ac60d6341075148d59c05e43ee9f35a32130c",
+    "eval/RULER/scripts/data/template.py": "6a840f68875fbdeb40298b02f53baf6ea5f26c0baa2f9492c5fdcebfb85e666d",
+    "eval/RULER/scripts/data/synthetic/constants.py": "a0a8003e1865206c76b7474972c0906e3a8200a6606cebece13e31ac0fc067f7",
+    "eval/RULER/scripts/data/synthetic/qa.py": "1e096ccabb92db700c5a3e64c4e895c9d70f29313313cf9dec9d0a83b7948126",
+    "eval/RULER/scripts/data/synthetic/niah.py": "21dbcba53f489aabc16e28c35c2c166ed0de45b4845fd9b2bfdb1f30587bfbf8",
+    "eval/RULER/scripts/data/synthetic/freq_words_extraction.py": "68c45f0c14b5ebb57931313246846a5a3df8f9aed1c0509395ed04110f62c022",
+    "eval/RULER/scripts/data/synthetic/variable_tracking.py": "23dce876888bea3d20c25db5f53739ce78f04b5732bfe1c7bf502d3f4f7cf13f",
+    "eval/RULER/scripts/data/synthetic/common_words_extraction.py": "64c4101971fd0aaf88abd6d3ef3db137763066773ac6c0f791d3549b5ce1cf6e"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "task": "niah_multikey_2",
+  "sample_index": 1,
+  "policy": "fixed_1x1",
+  "status": "failed",
+  "error_type": "ValueError",
+  "error": "Nonfinite Q/K before scoring: {'layer': 27, 'policy': 'fixed_1x1', 'stage': 'raw_score_estimator', 'score_shape': [1, 32, 1024, 1024], 'nonfinite_scores': 1345312, 'q_nonfinite': 26262, 'k_nonfinite': 21367, 'meta': {'q_real_blocks': 1020, 'k_real_blocks': 1020, 'q_full_blocks': 1024, 'k_full_blocks': 1024, 'num_blocks_per_chunk': 16}}; inspect upstream attention/model activations",
+  "diagnostic": {
+    "layer": 27,
+    "policy": "fixed_1x1",
+    "stage": "raw_score_estimator",
+    "score_shape": [
+      1,
+      32,
+      1024,
+      1024
+    ],
+    "nonfinite_scores": 1345312,
+    "q_nonfinite": 26262,
+    "k_nonfinite": 21367,
+    "meta": {
+      "q_real_blocks": 1020,
+      "k_real_blocks": 1020,
+      "q_full_blocks": 1024,
+      "k_full_blocks": 1024,
+      "num_blocks_per_chunk": 16
+    }
+  }
+}

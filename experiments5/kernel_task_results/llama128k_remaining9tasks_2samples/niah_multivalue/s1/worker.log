@@ -1,0 +1,32 @@
+
+--- Fresh sample worker ---
+Single-process model loading: temporarily ignoring launcher variables: WORLD_SIZE, RANK, MASTER_ADDR, MASTER_PORT
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.8.0+cu128).
+
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:02<00:08,  2.99s/it]
+Loading checkpoint shards:  50%|█████     | 2/4 [00:06<00:06,  3.03s/it]
+Loading checkpoint shards:  75%|███████▌  | 3/4 [00:08<00:02,  2.97s/it]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:09<00:00,  2.06s/it]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:09<00:00,  2.40s/it]
+Evaluating niah_multivalue 1 fixed_1x1
+Nonfinite fused scores with finite Q/K: layer=6, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=7, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=8, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=9, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=10, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=11, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=12, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=13, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=14, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=16, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=17, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=18, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=19, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=20, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=21, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=22, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=23, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=24, policy=fixed_1x1; recomputing sampled scores in FP32
+Nonfinite fused scores with finite Q/K: layer=26, policy=fixed_1x1; recomputing sampled scores in FP32
+Skipping numerically failed sample: niah_multivalue 1 fixed_1x1 Nonfinite Q/K before scoring: {'layer': 27, 'policy': 'fixed_1x1', 'stage': 'raw_score_estimator', 'score_shape': [1, 32, 1024, 1024], 'nonfinite_scores': 1358866, 'q_nonfinite': 37592, 'k_nonfinite': 54687, 'meta': {'q_real_blocks': 1019, 'k_real_blocks': 1019, 'q_full_blocks': 1024, 'k_full_blocks': 1024, 'num_blocks_per_chunk': 16}}; inspect upstream attention/model activations

@@ -1,0 +1,61 @@
+
+--- Fresh sample worker ---
+Single-process model loading: temporarily ignoring launcher variables: WORLD_SIZE, RANK, MASTER_ADDR, MASTER_PORT
+Skipping import of cpp extensions due to incompatible torch version. Please upgrade to torch >= 2.11.0 (found 2.8.0+cu128).
+
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]
+Loading checkpoint shards:  25%|██▌       | 1/4 [00:02<00:08,  2.96s/it]
+Loading checkpoint shards:  50%|█████     | 2/4 [00:05<00:05,  2.98s/it]
+Loading checkpoint shards:  75%|███████▌  | 3/4 [00:08<00:02,  2.93s/it]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:09<00:00,  2.03s/it]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:09<00:00,  2.37s/it]
+Evaluating niah_single_3 0 fixed_1x1
+Traceback (most recent call last):
+  File "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/experiments5/kernel_task_sweep/run_sweep.py", line 358, in prefill
+    if out.is_cuda:self.torch.cuda.synchronize(out.device)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/torch/cuda/__init__.py", line 1085, in synchronize
+    return torch._C._cuda_synchronize()
+torch.AcceleratorError: CUDA error: an illegal memory access was encountered
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/experiments5/kernel_task_sweep/run_sweep.py", line 498, in <module>
+    if __name__=='__main__':main()
+  File "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/experiments5/kernel_task_sweep/run_sweep.py", line 479, in main
+    try:result=evaluate_policy(a,env,item,policy)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/experiments5/kernel_task_sweep/run_sweep.py", line 393, in evaluate_policy
+    result=common.old.label_nll(model,prompt_ids,label_ids,torch)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/experiments/block_label_swap/run_experiment.py", line 180, in label_nll
+    result = model.model(input_ids=ids, past_key_values=cache, use_cache=True,
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/transformers/utils/generic.py", line 965, in wrapper
+    output = func(self, *args, **kwargs)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/transformers/models/llama/modeling_llama.py", line 571, in forward
+    layer_outputs = decoder_layer(
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/accelerate/hooks.py", line 192, in new_forward
+    output = module._old_forward(*args, **kwargs)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/transformers/models/llama/modeling_llama.py", line 318, in forward
+    hidden_states, self_attn_weights = self.self_attn(
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/conda/miniconda3/envs/fyc_qwen/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+  File "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/xattn/src/load_transformers_451.py", line 415, in forward_eval_451
+    attn_output = _run_prefill(
+  File "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/experiments5/kernel_task_sweep/run_sweep.py", line 368, in prefill
+    raise RuntimeError(f'Prefill CUDA context failure: layer={self.current_layer}, policy={self.policy}, shapes={diagnostic}') from exc
+RuntimeError: Prefill CUDA context failure: layer=5, policy=fixed_1x1, shapes={'layer': 5, 'policy': 'fixed_1x1', 'stage': 'prefill_or_output_synchronization', 'q_shape': [1, 32, 130358, 128], 'k_shape': [1, 32, 130358, 128], 'v_shape': [1, 32, 130358, 128], 'error': 'CUDA error: an illegal memory access was encountered\nCUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1\nCompile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.\n'}

@@ -1,0 +1,15 @@
+{
+  "data_sha256": "5e739f81fab7d318c07bdb4bae72d0653aaa2722ff1b77b63c856c6b44941d43",
+  "input_count": 18,
+  "tasks": [
+    "niah_single_2",
+    "niah_single_3",
+    "niah_multikey_2",
+    "niah_multikey_3",
+    "niah_multivalue",
+    "niah_multiquery",
+    "vt",
+    "cwe",
+    "qa_1"
+  ]
+}
