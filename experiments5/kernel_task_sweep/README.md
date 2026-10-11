@@ -173,3 +173,24 @@ disjoint and cover all 13 tasks. Each source summary must be finished; failed
 inputs are excluded consistently from all policies, and missing tasks do not
 silently disappear from the macro average. Complete results are NLL diagnostics,
 not the standard RULER free-generation benchmark scores.
+
+## CUDA context isolation
+
+The complete/remaining-task launcher now enables `--isolate-samples` by default.
+The CPU parent launches one fresh Python worker per input (six kernel policies
+in that worker); workers stream logs to `TASK/sN/worker.log`. A CUDA illegal
+memory access/device assertion/misaligned access/unspecified launch failure
+terminates the worker. Only after that worker exits does the parent record
+`failed_sample.json`, exclude the whole input, and launch the next fresh worker.
+It never continues using a poisoned CUDA context. OOM, missing files and other
+errors are not treated as sample failures. Numeric NaN/Inf exclusions remain.
+Per-input isolation reloads model weights, increasing wall time.
+
+This is failure containment, not a proven fix to the sparse CUDA kernel.
+Post-prefill synchronization adds layer, policy and Q/K/V shapes to worker
+failure diagnostics. The narrowly identified prior runner can upgrade its
+manifest for this control-only change while preserving existing policy losses.
+Prepared-data files and production LongBench/RULER code are unchanged.
+For the original four-task launcher, pass `--isolate-samples` explicitly.
+Summary reports failed/excluded samples; if an entire task has no surviving
+paired input, it does not manufacture a complete macro score.

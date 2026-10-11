@@ -47,7 +47,7 @@ OUTPUT="${OUTPUT:-experiments5/kernel_task_results/llama${LENGTH}_${GROUP}_${NUM
 DATA_DIR="${DATA_DIR:-experiments5/kernel_task_data/llama_${SEQ_LENGTH}_${GROUP}_${NUM_SAMPLES}samples_seed${SEED}}"
 CMD=(bash "$SCRIPT_DIR/run_kernel_task_sweep_llama128k.sh"
      --tasks "$TASKS" --num-samples "$NUM_SAMPLES" --seq-length "$SEQ_LENGTH" --data-seed "$SEED"
-     --data-dir "$DATA_DIR" --output-root "$OUTPUT")
+     --data-dir "$DATA_DIR" --output-root "$OUTPUT" --isolate-samples)
 if ! "$LEARNED"; then CMD+=(--fixed-only); fi
 CMD+=("${EXTRA[@]}")
 printf 'Tasks: %s\nData directory: %s\nResults: %s\n' "$TASKS" "$DATA_DIR" "$OUTPUT"

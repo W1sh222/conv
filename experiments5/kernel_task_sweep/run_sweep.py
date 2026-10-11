@@ -6,6 +6,7 @@ import math
 import os
 from pathlib import Path
 import random
+import subprocess
 import sys
 import numpy as np
 
@@ -27,7 +28,89 @@ MODEL_LOAD_BUG_HASHES={
 SKIP_CONTROL_UPGRADE_HASHES={
     'eb48412f9f5774510856d8b922aeb858af1371e8b3720175487a9373da2bef2f',
     '0218a1b195470247a03c162427f6fda713c3c93462b964ed946e09d1c47ccadc',
+    '93f19950b1bf006375d786b5546e635c41344b5cb5933116305a012d9bd82d87',
+    '15b42c930d1a00e36a9b69498ce4b2f4286edfdea76878b31b3d1265c6df7628',
 }
+
+
+def cuda_context_fault(text):
+    text=text.lower()
+    return any(message in text for message in (
+        'cuda error: an illegal memory access', 'cuda error: device-side assert',
+        'cuda error: misaligned address', 'cuda error: unspecified launch failure'))
+
+
+def run_sample_worker(command,log_path):
+    """Stream worker output to terminal and file; the parent never owns CUDA."""
+    log_path.parent.mkdir(parents=True,exist_ok=True)
+    with log_path.open('a',encoding='utf-8') as log:
+        log.write('\n--- Fresh sample worker ---\n');log.flush()
+        process=subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
+                                 text=True,encoding='utf-8',errors='replace',bufsize=1)
+        try:
+            for line in process.stdout:
+                print(line,end='',flush=True);log.write(line);log.flush()
+            return process.wait()
+        except BaseException:
+            process.terminate();process.wait();raise
+
+
+def isolated_sample_results(a,inputs,policies,out):
+    results=[];failures=[]
+    for item in inputs:
+        case=out/item['task']/f"s{item['sample_index']}";case.mkdir(parents=True,exist_ok=True)
+        failure_path=case/'failed_sample.json'
+        complete=all((case/(policy+'.json')).is_file() for policy in policies)
+        if not failure_path.is_file() and not complete:
+            command=[sys.executable,'-u',str(Path(__file__).resolve()),*sys.argv[1:],
+                     '--worker-task',item['task'],'--worker-sample',str(item['sample_index']),'--resume']
+            log_path=case/'worker.log'
+            # Scan only this attempt, not an earlier appended traceback.
+            previous_size=log_path.stat().st_size if log_path.exists() else 0
+            print('Starting isolated sample:',item['task'],item['sample_index'],flush=True)
+            code=run_sample_worker(command,log_path)
+            if code!=0:
+                with log_path.open('rb') as log:
+                    log.seek(previous_size);text=log.read().decode('utf-8',errors='replace')
+                if not cuda_context_fault(text):
+                    raise RuntimeError(f'Sample worker exited {code}; not a recoverable CUDA context fault. See {log_path}')
+                active=case/'active_attempt.json'
+                attempt=json.loads(active.read_text()) if active.is_file() else {}
+                failure=dict(task=item['task'],sample_index=item['sample_index'],status='failed',
+                             policy=attempt.get('policy'),error_type='CUDAContextFault',
+                             error='Worker CUDA context failed; process exited and entire input excluded',
+                             exit_code=code,worker_log=str(log_path))
+                if attempt.get('diagnostic'):failure['diagnostic']=attempt['diagnostic']
+                atomic_json(failure_path,failure)
+                print('CUDA-failed worker exited; continuing in a fresh process:',item['task'],item['sample_index'],flush=True)
+        if failure_path.is_file():
+            failure=json.loads(failure_path.read_text())
+            if failure.get('status')!='failed' or failure.get('task')!=item['task'] or failure.get('sample_index')!=item['sample_index']:
+                raise ValueError('Invalid failed sample record: '+str(failure_path))
+            failures.append(failure)
+        else:
+            for policy in policies:
+                path=case/(policy+'.json');result=json.loads(path.read_text())
+                if (result.get('status')!='complete' or result.get('task')!=item['task'] or
+                    result.get('sample_index')!=item['sample_index'] or result.get('policy')!=policy or
+                    not math.isfinite(result['label_loss']) or not result.get('token_losses') or
+                    abs(float(np.mean(result['token_losses']))-result['label_loss'])>1e-12):
+                    raise ValueError('Invalid saved policy result: '+str(path))
+                results.append(result)
+        common.csv_file(out/'individual_losses.csv',results)
+        common.csv_file(out/'failed_samples.csv',failures)
+    return results,failures
+
+
+def save_summary(results,inputs,tasks,policies,failures,out,identity):
+    summary=paired_summary(results,inputs,tasks,policies,failures)
+    summary.update(data_sha256=identity['data_sha256'],weight_sha256=identity['weight_sha256'])
+    atomic_json(out/'summary.json',summary)
+    common.csv_file(out/'failed_samples.csv',failures)
+    if summary['macro_mean_nll'] is not None:
+        common.csv_file(out/'task_mean_losses.csv',[dict(task=t,**summary['task_mean_nll'][t]) for t in tasks]+
+                        [dict(task='Macro average',**summary['macro_mean_nll'])])
+    print(json.dumps(summary,indent=2))
 
 
 def skippable_numerical_error(exc):
@@ -173,6 +256,10 @@ def parser():
     p.add_argument('--seq-length',type=int,default=131072)
     p.add_argument('--mask-backend',choices=['cpu','cuda'],default='cpu',
                    help='CPU is the stable diagnostic selector; CUDA uses the repository Top-k routine')
+    p.add_argument('--isolate-samples',action='store_true',
+                   help='Fresh process per input; CUDA context failures skip the input after worker exit')
+    p.add_argument('--worker-task',help=argparse.SUPPRESS)
+    p.add_argument('--worker-sample',type=int,help=argparse.SUPPRESS)
     return p
 
 
@@ -266,7 +353,20 @@ class KernelController(common.old.MaskController):
 
     def prefill(self,attn,*args,**kwargs):
         self.current_layer=attn.layer_idx
-        out=super().prefill(attn,*args,**kwargs)
+        try:
+            out=super().prefill(attn,*args,**kwargs)
+            if out.is_cuda:self.torch.cuda.synchronize(out.device)
+        except Exception as exc:
+            if cuda_context_fault(str(exc)):
+                diagnostic=dict(layer=self.current_layer,policy=self.policy,
+                                stage='prefill_or_output_synchronization',
+                                q_shape=list(args[0].shape),k_shape=list(args[1].shape),
+                                v_shape=list(args[2].shape),error=str(exc))
+                if getattr(self.args,'worker_task',None) is not None:
+                    case=Path(self.args.output)/self.args.worker_task/f's{self.args.worker_sample}'
+                    atomic_json(case/'active_attempt.json',dict(policy=self.policy,diagnostic=diagnostic))
+                raise RuntimeError(f'Prefill CUDA context failure: layer={self.current_layer}, policy={self.policy}, shapes={diagnostic}') from exc
+            raise
         if not self.torch.isfinite(out).all():
             diagnostic=dict(layer=self.current_layer,policy=self.policy,stage='block_sparse_attention_output',
                             nonfinite_output=int((~self.torch.isfinite(out)).sum().item()))
@@ -334,7 +434,7 @@ def main():
     identities=[(r['task'],r['sample_index']) for r in inputs]
     if len(identities)!=len(set(identities)):raise ValueError('Duplicate task/sample identities')
     out=Path(a.output)
-    identity={'arguments':{k:v for k,v in vars(a).items() if k not in ('resume','dry_run','output','no_plots')},
+    identity={'arguments':{k:v for k,v in vars(a).items() if k not in ('resume','dry_run','output','no_plots','isolate_samples','worker_task','worker_sample')},
               'data_sha256':file_hash(a.data),'weight_sha256':file_hash(a.conv_weights) if a.conv_weights else None,
               'source_sha256':{str(p.relative_to(ROOT)):file_hash(p) for p in
                   [Path(__file__),Path(__file__).with_name('sweep_core.py'),ROOT/'experiments3/analysis_core.py',
@@ -342,6 +442,14 @@ def main():
                    ROOT/'ft_scripts/sparse_ruler/conv_sparse_ops.py']},
               'model_metadata':{n:file_hash(Path(a.model)/n) for n in ('config.json','tokenizer_config.json','tokenizer.json') if (Path(a.model)/n).is_file()}}
     ensure_run_manifest(out,identity,a.resume)
+    if a.worker_task is not None:
+        inputs=[item for item in inputs if item['task']==a.worker_task and item['sample_index']==a.worker_sample]
+        if len(inputs)!=1:raise ValueError('Worker must address exactly one prepared input')
+    elif a.worker_sample is not None:raise ValueError('Worker sample requires worker task')
+    if a.isolate_samples and a.worker_task is None:
+        results,failures=isolated_sample_results(a,inputs,policies,out)
+        save_summary(results,inputs,tasks,policies,failures,out,identity)
+        return
     env=None;results=[];failures=[]
     for item in inputs:
         case=out/item['task']/f"s{item['sample_index']}";case.mkdir(parents=True,exist_ok=True)
@@ -366,6 +474,8 @@ def main():
             else:
                 if env is None:env=setup(a)
                 print('Evaluating',item['task'],item['sample_index'],policy,flush=True)
+                if a.worker_task is not None:
+                    atomic_json(case/'active_attempt.json',dict(policy=policy))
                 try:result=evaluate_policy(a,env,item,policy)
                 except (ValueError,RuntimeError) as exc:
                     if not skippable_numerical_error(exc):raise
@@ -381,14 +491,8 @@ def main():
                 result.update(task=item['task'],sample_index=item['sample_index'],status='complete')
                 atomic_json(path,result)
             results.append(result);common.csv_file(out/'individual_losses.csv',results)
-    summary=paired_summary(results,inputs,tasks,policies,failures)
-    summary.update(data_sha256=identity['data_sha256'],weight_sha256=identity['weight_sha256'])
-    atomic_json(out/'summary.json',summary)
-    common.csv_file(out/'failed_samples.csv',failures)
-    if summary['macro_mean_nll'] is not None:
-        common.csv_file(out/'task_mean_losses.csv',[dict(task=t,**summary['task_mean_nll'][t]) for t in tasks]+
-                        [dict(task='Macro average',**summary['macro_mean_nll'])])
-    print(json.dumps(summary,indent=2))
+    if a.worker_task is not None:return
+    save_summary(results,inputs,tasks,policies,failures,out,identity)
 
 
 if __name__=='__main__':main()

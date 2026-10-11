@@ -14,6 +14,40 @@ from sweep_core import convert, summarize, SIZES
 
 
 class SweepTests(unittest.TestCase):
+    def test_isolated_cuda_failure_exits_worker_and_next_input_runs(self):
+        import run_sweep
+        with tempfile.TemporaryDirectory() as tmp:
+            out=Path(tmp);inputs=[dict(task='fwe',sample_index=i) for i in range(2)]
+            policies=['fixed_1x1','fixed_3x3'];calls=[]
+            def worker(command,log_path):
+                calls.append(command)
+                if len(calls)==1:
+                    log_path.write_text('CUDA error: an illegal memory access was encountered')
+                    return 1
+                for policy in policies:
+                    row=dict(task='fwe',sample_index=1,policy=policy,status='complete',label_loss=1.,token_losses=[1.])
+                    (log_path.parent/(policy+'.json')).write_text(json.dumps(row))
+                log_path.write_text('finished');return 0
+            with contextlib.redirect_stdout(io.StringIO()),mock.patch.object(run_sweep,'run_sample_worker',side_effect=worker):
+                rows,failures=run_sweep.isolated_sample_results(types.SimpleNamespace(),inputs,policies,out)
+            self.assertEqual(len(calls),2)
+            self.assertEqual(len(rows),2)
+            self.assertEqual(failures[0]['error_type'],'CUDAContextFault')
+            self.assertEqual(failures[0]['sample_index'],0)
+            self.assertIn('--worker-task',calls[1])
+            with mock.patch.object(run_sweep,'run_sample_worker') as retry:
+                run_sweep.isolated_sample_results(types.SimpleNamespace(),inputs,policies,out)
+            retry.assert_not_called()
+
+    def test_isolation_does_not_swallow_unrelated_worker_failures(self):
+        import run_sweep
+        with tempfile.TemporaryDirectory() as tmp:
+            def worker(command,path):path.write_text('FileNotFoundError: missing model');return 1
+            with mock.patch.object(run_sweep,'run_sample_worker',side_effect=worker),contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaises(RuntimeError):
+                    run_sweep.isolated_sample_results(types.SimpleNamespace(),[dict(task='fwe',sample_index=0)],['fixed_1x1'],Path(tmp))
+        self.assertFalse(run_sweep.cuda_context_fault('CUDA out of memory'))
+
     def test_all_ruler_tasks_and_qa_alternative_serialization(self):
         from sweep_core import TASKS,ALL_TASKS
         self.assertEqual(len(ALL_TASKS),13)
