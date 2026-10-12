@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd -- "$SCRIPT_DIR/.."
 MODE=remaining
-NUM_SAMPLES=2
+NUM_SAMPLES=4
 SEQ_LENGTH=131072
 SEED=20261008
 OUTPUT=""
@@ -25,7 +25,7 @@ while [[ $# -gt 0 ]]; do
         --tasks) printf 'Use --all-tasks/--remaining-tasks, or the original launcher for a custom task list.\n' >&2; exit 2 ;;
         --help|-h)
             printf '%s\n' 'Usage: bash experiments5/run_kernel_task_sweep_ruler_all.sh [options]' \
-              'Default: remaining 9 RULER tasks, Llama 128K, two inputs/task, fixed kernels 1/3/5/7/9/11.' \
+              'Default: remaining 9 RULER tasks, Llama 128K, four inputs/task, reference scoring and masked SDPA.' \
               '--all-tasks: run all 13 tasks in a separate directory (does not import the old four).' \
               '--remaining-tasks: run only the nine not in the existing four-task sweep.' \
               '--resume: preserve completed policies and skip recorded numerical failures.' \
@@ -43,7 +43,7 @@ else
     GROUP=remaining9tasks
 fi
 if [[ "$SEQ_LENGTH" == 131072 ]]; then LENGTH=128k; else LENGTH="$SEQ_LENGTH"; fi
-OUTPUT="${OUTPUT:-experiments5/kernel_task_results/llama${LENGTH}_${GROUP}_${NUM_SAMPLES}samples}"
+OUTPUT="${OUTPUT:-experiments5/kernel_task_results/llama${LENGTH}_${GROUP}_${NUM_SAMPLES}samples_reference_v2}"
 DATA_DIR="${DATA_DIR:-experiments5/kernel_task_data/llama_${SEQ_LENGTH}_${GROUP}_${NUM_SAMPLES}samples_seed${SEED}}"
 CMD=(bash "$SCRIPT_DIR/run_kernel_task_sweep_llama128k.sh"
      --tasks "$TASKS" --num-samples "$NUM_SAMPLES" --seq-length "$SEQ_LENGTH" --data-seed "$SEED"

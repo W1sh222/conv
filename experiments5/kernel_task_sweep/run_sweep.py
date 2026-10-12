@@ -104,6 +104,11 @@ def isolated_sample_results(a,inputs,policies,out):
 
 def save_summary(results,inputs,tasks,policies,failures,out,identity):
     summary=paired_summary(results,inputs,tasks,policies,failures)
+    summary['usable_for_kernel_comparison']=summary['macro_mean_nll'] is not None
+    summary['numerical_protocol']={name:identity['arguments'].get(name) for name in
+                                   ('attention_backend','score_backend','mask_backend','sdpa_head_chunk')}
+    if not summary['usable_for_kernel_comparison']:
+        print('NO VALID MACRO COMPARISON: at least one task has zero paired inputs. Do not use this summary as performance evidence.',flush=True)
     summary.update(data_sha256=identity['data_sha256'],weight_sha256=identity['weight_sha256'])
     atomic_json(out/'summary.json',summary)
     common.csv_file(out/'failed_samples.csv',failures)
@@ -256,6 +261,12 @@ def parser():
     p.add_argument('--seq-length',type=int,default=131072)
     p.add_argument('--mask-backend',choices=['cpu','cuda'],default='cpu',
                    help='CPU is the stable diagnostic selector; CUDA uses the repository Top-k routine')
+    p.add_argument('--attention-backend',choices=['sdpa','custom'],default='sdpa',
+                   help='Bounded masked PyTorch SDPA by default; custom is the legacy CUDA extension')
+    p.add_argument('--score-backend',choices=['reference','fused'],default='reference',
+                   help='FP32 sampled reference avoids the custom fused estimator')
+    p.add_argument('--sdpa-head-chunk',type=int,default=1,
+                   help='Heads per reference SDPA call; 1 minimizes workspace')
     p.add_argument('--isolate-samples',action='store_true',
                    help='Fresh process per input; CUDA context failures skip the input after worker exit')
     p.add_argument('--worker-task',help=argparse.SUPPRESS)
@@ -303,8 +314,17 @@ class KernelController(common.old.MaskController):
 
     def estimate(self,*args,**kwargs):
         try:
-            scores,meta=self.raw(*args,**kwargs)
+            if self.args.score_backend=='reference':
+                q,k=args[:2]
+                if not self.torch.isfinite(q).all() or not self.torch.isfinite(k).all():
+                    raise ValueError(f'Nonfinite Q/K before scoring: layer={self.current_layer}')
+                scores,meta=reference_sampled_scores(q,k,self.torch,**kwargs)
+                self.reference_layers.append(self.current_layer)
+            else:
+                scores,meta=self.raw(*args,**kwargs)
             if scores.is_cuda:self.torch.cuda.synchronize(scores.device)
+        except ValueError:
+            raise
         except Exception as exc:
             raise RuntimeError(f'Score-estimator failure before selection: layer={self.current_layer}, policy={self.policy}') from exc
         if not self.torch.isfinite(scores).all():
@@ -353,6 +373,14 @@ class KernelController(common.old.MaskController):
 
     def prefill(self,attn,*args,**kwargs):
         self.current_layer=attn.layer_idx
+        original_backend=self.conv.block_sparse_attn_func
+        if self.args.attention_backend=='sdpa':
+            from safe_attention import masked_sdpa
+            def reference_backend(q,k,v,cuq,cuk,kinds,stream,mask,qlen,klen,**options):
+                if options.get('p_dropout',0)!=0 or not options.get('is_causal',False):
+                    raise ValueError('Reference backend requires causal inference without dropout')
+                return masked_sdpa(q,k,v,mask,self.torch,head_chunk=self.args.sdpa_head_chunk)
+            self.conv.block_sparse_attn_func=reference_backend
         try:
             out=super().prefill(attn,*args,**kwargs)
             if out.is_cuda:self.torch.cuda.synchronize(out.device)
@@ -367,6 +395,8 @@ class KernelController(common.old.MaskController):
                     atomic_json(case/'active_attempt.json',dict(policy=self.policy,diagnostic=diagnostic))
                 raise RuntimeError(f'Prefill CUDA context failure: layer={self.current_layer}, policy={self.policy}, shapes={diagnostic}') from exc
             raise
+        finally:
+            self.conv.block_sparse_attn_func=original_backend
         if not self.torch.isfinite(out).all():
             diagnostic=dict(layer=self.current_layer,policy=self.policy,stage='block_sparse_attention_output',
                             nonfinite_output=int((~self.torch.isfinite(out)).sum().item()))
@@ -396,7 +426,8 @@ def evaluate_policy(a,env,item,policy):
         return dict(policy=policy,**result,repeat_drift=abs(result['label_loss']-repeated['label_loss']),
                     prompt_tokens=len(prompt_ids),label_tokens=len(label_ids),
                     mask_backend=a.mask_backend,
-                    score_estimator='fused sampling with FP32 sampled reference on nonfinite scores',
+                    attention_backend=a.attention_backend,
+                    score_estimator=a.score_backend,
                     reference_estimator_layers=c.reference_layers,
                     tie_rule='lower key-block index first' if a.mask_backend=='cpu' else 'repository torch.topk tie behavior',
                     scope='All layers/heads; each policy selects on its own activations; prompt-only sparse prefill')
@@ -414,6 +445,7 @@ def main():
     if not sizes or sizes[0]!=1 or len(set(sizes))!=len(sizes) or any(s not in SIZES for s in sizes):raise ValueError('Sizes must start with 1, be unique and drawn from 1,3,5,7,9,11')
     if len(set(tasks))!=len(tasks) or not tasks or any(t not in ALL_TASKS for t in tasks):raise ValueError('Invalid tasks')
     if a.samples_per_task<1 or not 0<a.ratio<1 or a.stride<=0 or 128%a.stride:raise ValueError('Invalid sample count/budget/stride')
+    if a.sdpa_head_chunk<1:raise ValueError('SDPA head chunk must be positive')
     if a.background!='sparse' or a.chat_template or a.max_label_tokens or a.max_prompt_tokens:
         raise ValueError('Use full sparse policies and prepared templates without token truncation')
     if a.fixed_only and a.conv_weights:raise ValueError('Choose fixed-only OR a learned checkpoint')
@@ -437,7 +469,7 @@ def main():
     identity={'arguments':{k:v for k,v in vars(a).items() if k not in ('resume','dry_run','output','no_plots','isolate_samples','worker_task','worker_sample')},
               'data_sha256':file_hash(a.data),'weight_sha256':file_hash(a.conv_weights) if a.conv_weights else None,
               'source_sha256':{str(p.relative_to(ROOT)):file_hash(p) for p in
-                  [Path(__file__),Path(__file__).with_name('sweep_core.py'),ROOT/'experiments3/analysis_core.py',
+                  [Path(__file__),Path(__file__).with_name('safe_attention.py'),Path(__file__).with_name('sweep_core.py'),ROOT/'experiments3/analysis_core.py',
                    ROOT/'experiments3/experiment_common.py',ROOT/'experiments/block_label_swap/run_experiment.py',
                    ROOT/'ft_scripts/sparse_ruler/conv_sparse_ops.py']},
               'model_metadata':{n:file_hash(Path(a.model)/n) for n in ('config.json','tokenizer_config.json','tokenizer.json') if (Path(a.model)/n).is_file()}}
