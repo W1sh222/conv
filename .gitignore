@@ -5,7 +5,9 @@
 Figs/
 figures/
 flash_attn_temp/
-output/
+# Keep generated outputs ignored, but descend into the observation directories
+# below so the explicitly listed numerical results can be tracked.
+output/**
 pptx-build/
 acl_revision/
 tmp/
@@ -78,3 +80,63 @@ core.*
 **/.ipynb_checkpoints/
 .idea/
 .vscode/
+
+# =========================
+# Observation results needed for replotting and checking the Intro triptych
+# =========================
+# Server repository root (all paths below are relative to this directory):
+# /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/
+#
+# Panel 1 original all-row map:
+# /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/mask_score_layer14_head8/
+# Four-GPU maps: append layer6_head2/, layer14_head16/, layer22_head24/,
+# or layer30_head4/ to the following server directory:
+# /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/mask_score_four_gpu/
+#
+# Panels 2 and 3 share these analysis files (verified source: layer 14, head 8,
+# query block 255; head is recorded in summary.json, not a head subdirectory):
+# /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_layers/layer_14/observation2_line6/candidate_context.csv
+# /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_layers/layer_14/observation2_line6/matched_pairs.csv
+# /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_layers/layer_14/observation2_line6/summary.json
+# Their original individual replacement results are in:
+# /inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_layers/layer_14/swap/
+#
+# The ** rules cover ALL existing/future layer and head subdirectories,
+# including vt_32k_seed42_layers and vt_32k_seed42_q220_layers. They do not
+# imply those uninspected server directories already contain completed runs.
+# Each run's experiment.json / summary.json identifies its actual layer/head.
+!output/ruler_observation/
+!output/ruler_observation/**/
+
+# All-row maps: original run, four-GPU runs, and later layer/head groups.
+!output/ruler_observation/mask_score*/**/experiment.json
+!output/ruler_observation/mask_score*/**/block_map.npz
+!output/ruler_observation/mask_score*/**/trials.jsonl
+!output/ruler_observation/mask_score*/**/mask_score.npz
+!output/ruler_observation/mask_score*/**/four_gpu_summary.csv
+!output/ruler_observation/mask_score*/**/four_gpu_manifest.json
+
+# Single-row replacement data used to compute candidate utilities.
+!output/ruler_observation/**/swap/experiment.json
+!output/ruler_observation/**/swap/block_map.npz
+!output/ruler_observation/**/swap/trials.jsonl
+
+# Paired comparison and residual correlation: every layer/head/run variant.
+!output/ruler_observation/**/observation2*/candidate_context.csv
+!output/ruler_observation/**/observation2*/matched_pairs.csv
+!output/ruler_observation/**/observation2*/summary.json
+
+# Exact saved VT sample and preparation metadata for reproducibility.
+!output/ruler_observation/**/_vt_data/observation.jsonl
+!output/ruler_observation/**/_vt_data/pipeline.json
+
+# Local numerical copies used by the current Intro plotting script.
+!figures/
+figures/**
+!figures/observe2_data_intro/
+!figures/observe2_data_intro/source_data/
+!figures/observe2_data_intro/source_data/candidate_context.csv
+!figures/observe2_data_intro/source_data/matched_pairs.csv
+!figures/observe2_data_intro/source_data/summary.json
+# No model weights, frozen_masks.pt, logs, figures or launcher lock files
+# are made trackable by these exceptions.
