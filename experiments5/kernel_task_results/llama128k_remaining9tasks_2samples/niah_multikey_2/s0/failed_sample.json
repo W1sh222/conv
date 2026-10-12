@@ -1,0 +1,34 @@
+{
+  "task": "niah_multikey_2",
+  "sample_index": 0,
+  "status": "failed",
+  "policy": "fixed_1x1",
+  "error_type": "CUDAContextFault",
+  "error": "Worker CUDA context failed; process exited and entire input excluded",
+  "exit_code": 1,
+  "worker_log": "experiments5/kernel_task_results/llama128k_remaining9tasks_2samples/niah_multikey_2/s0/worker.log",
+  "diagnostic": {
+    "layer": 5,
+    "policy": "fixed_1x1",
+    "stage": "prefill_or_output_synchronization",
+    "q_shape": [
+      1,
+      32,
+      130510,
+      128
+    ],
+    "k_shape": [
+      1,
+      32,
+      130510,
+      128
+    ],
+    "v_shape": [
+      1,
+      32,
+      130510,
+      128
+    ],
+    "error": "CUDA error: an illegal memory access was encountered\nCUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1\nCompile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.\n"
+  }
+}

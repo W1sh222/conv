@@ -1,0 +1,29 @@
+{
+  "task": "cwe",
+  "sample_index": 0,
+  "policy": "fixed_1x1",
+  "status": "failed",
+  "error_type": "ValueError",
+  "error": "Nonfinite Q/K before scoring: {'layer': 27, 'policy': 'fixed_1x1', 'stage': 'raw_score_estimator', 'score_shape': [1, 32, 1024, 1024], 'nonfinite_scores': 1336139, 'q_nonfinite': 32868, 'k_nonfinite': 47625, 'meta': {'q_real_blocks': 1023, 'k_real_blocks': 1023, 'q_full_blocks': 1024, 'k_full_blocks': 1024, 'num_blocks_per_chunk': 16}}; inspect upstream attention/model activations",
+  "diagnostic": {
+    "layer": 27,
+    "policy": "fixed_1x1",
+    "stage": "raw_score_estimator",
+    "score_shape": [
+      1,
+      32,
+      1024,
+      1024
+    ],
+    "nonfinite_scores": 1336139,
+    "q_nonfinite": 32868,
+    "k_nonfinite": 47625,
+    "meta": {
+      "q_real_blocks": 1023,
+      "k_real_blocks": 1023,
+      "q_full_blocks": 1024,
+      "k_full_blocks": 1024,
+      "num_blocks_per_chunk": 16
+    }
+  }
+}

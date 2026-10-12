@@ -1,0 +1,68 @@
+{
+  "observation": "Neighborhood scores contain block-utility information beyond the center score.",
+  "utility_definition": "baseline label NLL minus replacement label NLL; higher is better",
+  "neighborhood_definition": "mean initial score of distinct in-bounds causally-valid blocks on the vertical and backslash-diagonal lines, three blocks on each side per line, center excluded",
+  "candidate_count": 77,
+  "run_count": 1,
+  "matched_pair_count": 21,
+  "mean_center_score_gap_in_sd": 0.033535672202470876,
+  "max_center_score_gap_in_sd": 0.1466304466270198,
+  "mean_neighbor_score_gap": 0.00026049010882072575,
+  "mean_utility_difference_high_minus_low_context": 0.0033704503261777975,
+  "paired_bootstrap_95pct_ci": [
+    -0.004388977573502834,
+    0.010462766710941828
+  ],
+  "high_context_wins": 16,
+  "low_context_wins": 5,
+  "ties_within_numerical_tolerance": 0,
+  "high_context_win_fraction_excluding_ties": 0.7619047619047619,
+  "paired_sign_flip_test": {
+    "method": "Monte Carlo paired sign-flip",
+    "permutations": 20000,
+    "observed_mean": 0.0033704503261777975,
+    "one_sided_p_high_context_better": 0.1961401929903505,
+    "two_sided_p": 0.3929803509824509
+  },
+  "partial_neighbor_pearson_r": 0.134852696497692,
+  "partial_neighbor_spearman_r": 0.10776066039223935,
+  "residual_permutation_test": {
+    "method": "Within-run residual permutation",
+    "permutations": 20000,
+    "partial_pearson_r": 0.134852696497692,
+    "one_sided_p_positive": 0.12589370531473426,
+    "two_sided_p": 0.24993750312484375
+  },
+  "supports_observation_in_this_dataset": false,
+  "scope_warning": "A single run is an illustrative within-row study; aggregate prespecified samples/layers/heads before making a general claim.",
+  "arguments": {
+    "input": [
+      "output/ruler_observation/vt_32k_seed42_q220_layers/layer_5/swap"
+    ],
+    "output": "output/ruler_observation/vt_32k_seed42_q220_layers/layer_5/observation2_line6",
+    "line_radius": 3,
+    "score_caliper": 0.15,
+    "min_pairs": 8,
+    "permutations": 20000,
+    "bootstrap_samples": 20000,
+    "seed": 42,
+    "point_size": 75.0,
+    "no_plots": false
+  },
+  "status": "complete",
+  "input_runs": [
+    {
+      "run_id": "run_000",
+      "directory": "/inspire/hdd/global_user/gexinmu-253108100065/Repos/fuyicheng_workshop/Innovator-lm-evaluation-hardness/x-attention-main/output/ruler_observation/vt_32k_seed42_q220_layers/layer_5/swap",
+      "layer": 5,
+      "head": 8,
+      "query_block": 220,
+      "candidate_count": 77
+    }
+  ],
+  "matching": "Within each run, split candidates at median neighborhood mean; greedily pair opposite groups by closest center score within the prespecified caliper. Grouping and matching do not use label loss.",
+  "source_sha256": {
+    "run_observation2.py": "05828f9284920f12f82771f530330d8b447f3adf321b8163422dbcd8d59add5f",
+    "context_core.py": "f5f8eed85316aeadc4dfd7e1c4ad9d40fa697ae6fddfc2f991c0a61f56827298"
+  }
+}
